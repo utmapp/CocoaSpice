@@ -19,8 +19,8 @@
 #import <spice-client.h>
 #import <spice/vd_agent.h>
 
-const NSNotificationName CSPasteboardChangedNotification = @"CSPasteboardChangedNotification";
-const NSNotificationName CSPasteboardRemovedNotification = @"CSPasteboardRemovedNotification";
+const NSNotificationName kCSPasteboardChangedNotification = @"CSPasteboardChangedNotification";
+const NSNotificationName kCSPasteboardRemovedNotification = @"CSPasteboardRemovedNotification";
 
 @interface CSSession ()
 
@@ -274,12 +274,12 @@ static void cs_channel_destroy(SpiceSession *session, SpiceChannel *channel,
     if (self = [super init]) {
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(pasteboardDidChange:)
-                                                     name:CSPasteboardChangedNotification
+                                                     name:kCSPasteboardChangedNotification
                                                    object:nil];
         
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(pasteboardDidRemove:)
-                                                     name:CSPasteboardRemovedNotification
+                                                     name:kCSPasteboardRemovedNotification
                                                    object:nil];
         self.shareClipboard = YES;
     }
@@ -320,11 +320,11 @@ static void cs_channel_destroy(SpiceSession *session, SpiceChannel *channel,
     g_object_unref(self.session);
     self.session = NULL;
     [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                    name:CSPasteboardChangedNotification
+                                                    name:kCSPasteboardChangedNotification
                                                   object:nil];
     
     [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                    name:CSPasteboardRemovedNotification
+                                                    name:kCSPasteboardRemovedNotification
                                                   object:nil];
 }
 

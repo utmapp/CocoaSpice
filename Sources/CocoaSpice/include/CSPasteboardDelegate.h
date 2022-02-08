@@ -35,10 +35,10 @@ typedef NS_ENUM(NSInteger, CSPasteboardType) {
 };
 
 /// Notification posted when pasteboard changes
-extern const NSNotificationName _Nonnull CSPasteboardChangedNotification;
+extern const NSNotificationName _Nonnull kCSPasteboardChangedNotification;
 
 /// Notification posted when an item is removed from the pasteboard
-extern const NSNotificationName _Nonnull CSPasteboardRemovedNotification;
+extern const NSNotificationName _Nonnull kCSPasteboardRemovedNotification;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -53,7 +53,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Get pasteboard data from system
 /// @param type Pasteboard type
-- (NSData *)dataForType:(CSPasteboardType)type;
+/// @returns data or nil if data is not found or is not of correct type
+- (nullable NSData *)dataForType:(CSPasteboardType)type;
 
 /// Sets pasteboard data in system
 /// @param data Pasteboard data
@@ -61,7 +62,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setData:(NSData *)data forType:(CSPasteboardType)type;
 
 /// Gets a string type pasteboard item from system
-- (NSString *)string;
+/// @returns string or nil if string is not found or is not of correct type
+- (nullable NSString *)string;
 
 /// Sets a string type pasteboard item to system
 /// @param string Pasteboard data
