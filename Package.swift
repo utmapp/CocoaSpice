@@ -5,12 +5,15 @@ import PackageDescription
 let package = Package(
     name: "CocoaSpice",
     platforms: [
-        .iOS(.v11), .macOS(.v11)
+        .iOS(.v11), .macOS(.v10_14)
     ],
     products: [
         .library(
             name: "CocoaSpice",
             targets: ["CocoaSpice"]),
+        .library(
+            name: "CocoaSpiceNoUsb",
+            targets: ["CocoaSpiceNoUsb"]),
     ],
     targets: [
         .target(
