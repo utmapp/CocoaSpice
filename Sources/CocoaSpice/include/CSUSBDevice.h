@@ -18,11 +18,28 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// Represents a single USB device
+///
+/// This is instantiated and used by `CSUSBManager`.
 @interface CSUSBDevice : NSObject
 
+/// A user-readable description of the device
 @property (nonatomic, nullable, readonly) NSString *name;
 
 - (instancetype)init NS_UNAVAILABLE;
+
+/// Compare two USB devices
+///
+/// The following are checked to be considered the same device
+///
+/// 1. USB manufacturer
+/// 2. USB product
+/// 3. USB vendor id and product id
+/// 4. USB bus number
+/// 5. USB address
+///
+/// @param usbDevice Other device
+/// @returns true if `usbDevice` is equal to this one
 - (BOOL)isEqualToUSBDevice:(CSUSBDevice *)usbDevice;
 
 @end

@@ -19,26 +19,17 @@
 
 @implementation CSScreenshot
 
-- (instancetype)init {
-    return [super init];
-}
-
 #if TARGET_OS_IPHONE
 - (instancetype)initWithImage:(UIImage *)image {
-    if (self = [self init]) {
+    if (self = [super init]) {
         _image = image;
     }
     return self;
 }
 
 - (instancetype)initWithContentsOfURL:(NSURL *)url {
-    if (self = [self init]) {
-        _image = [[UIImage alloc] initWithContentsOfFile:url.path];
-        if (_image == nil) {
-            self = nil;
-        }
-    }
-    return self;
+    UIImage *image = [[UIImage alloc] initWithContentsOfFile:url.path];
+    return [self initWithImage:image];
 }
 
 - (void)writeToURL:(NSURL *)url atomically:(BOOL)atomically {
@@ -46,20 +37,15 @@
 }
 #else
 - (instancetype)initWithImage:(NSImage *)image {
-    if (self = [self init]) {
+    if (self = [super init]) {
         _image = image;
     }
     return self;
 }
 
 - (instancetype)initWithContentsOfURL:(NSURL *)url {
-    if (self = [self init]) {
-        _image = [[NSImage alloc] initWithContentsOfURL:url];
-        if (_image == nil) {
-            self = nil;
-        }
-    }
-    return self;
+    NSImage *image = [[NSImage alloc] initWithContentsOfURL:url];
+    return [self initWithImage:image];
 }
 
 - (void)writeToURL:(NSURL *)url atomically:(BOOL)atomically {

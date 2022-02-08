@@ -18,15 +18,43 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// SPICE client lifetime management
+///
+/// To use the SPICE client GTK library, you must call `-spiceStart` which spawns a worker thread.
+/// @code
+/// CSMain *spice = [CSMain sharedInstance];
+/// [self.spice spiceSetDebug:YES]; // optional for debug logging
+/// if (![self.spice spiceStart]) {
+///     // worker failed to start, handle error
+///     return;
+/// }
+/// // now you can use `CSConnection` or any other API
+/// @endcode
 @interface CSMain : NSObject
 
+/// Is the worker thread running?
 @property (nonatomic, readonly) BOOL running;
+
+/// A `GMainContext` created by `-spiceStart`
+/// Advanced users can use this with GLib to run in the worker thread's context
 @property (nonatomic, readonly) void *glibMainContext;
 
-+ (CSMain *)sharedInstance;
+/// Use this to get a pointer to this singleton
+@property (class, nonatomic, readonly) CSMain *sharedInstance NS_SWIFT_NAME(shared);
+
 - (instancetype)init NS_UNAVAILABLE;
+
+/// Set verbose logging to stderr
+/// @param enabled Enable debug logging
 - (void)spiceSetDebug:(BOOL)enabled;
+
+/// Create and start SPICE client worker thread
+/// @attention This must be called before any other API usage
+/// @return true if worker thread started successful, false otherwise
 - (BOOL)spiceStart;
+
+/// Stop and clean up SPICE client worker thread
+/// @result It is unsafe to use any other API until `-spiceStart` is called again
 - (void)spiceStop;
 
 @end

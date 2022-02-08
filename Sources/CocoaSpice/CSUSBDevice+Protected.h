@@ -22,10 +22,17 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface CSUSBDevice ()
 
+/// SPICE GTK usb device
 @property (nonatomic, readonly) SpiceUsbDevice *device;
 
+/// Create a new USB device from a SPICE USB device
+/// @param device SPICE USB device
 + (instancetype)usbDeviceWithDevice:(SpiceUsbDevice *)device;
+
 - (instancetype)init NS_UNAVAILABLE;
+
+/// Create a new USB device from a SPICE USB device
+/// @param device SPICE USB device
 - (instancetype)initWithDevice:(SpiceUsbDevice *)device;
 
 @end

@@ -29,6 +29,12 @@ const NSNotificationName CSPasteboardRemovedNotification = @"CSPasteboardRemoved
 
 @end
 
+@interface CSSession (Sharing)
+
+- (void)createDefaultShareReadme;
+
+@end
+
 @implementation CSSession {
     SpiceMainChannel        *_main;
 }
@@ -275,6 +281,7 @@ static void cs_channel_destroy(SpiceSession *session, SpiceChannel *channel,
                                                  selector:@selector(pasteboardDidRemove:)
                                                      name:CSPasteboardRemovedNotification
                                                    object:nil];
+        self.shareClipboard = YES;
     }
     return self;
 }

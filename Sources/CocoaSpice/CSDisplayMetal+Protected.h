@@ -22,12 +22,20 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface CSDisplayMetal ()
 
+/// SPICE GTK session
 @property (nonatomic, readonly, nullable) SpiceSession *session;
+
+/// Channel number for this display
 @property (nonatomic, readonly) NSInteger channelID;
+
+/// Monitor number for this display
 @property (nonatomic, readonly) NSInteger monitorID;
 
+/// Create a new display for a given channel and monitor
+/// @param session SPICE session handling this display
+/// @param channelID Channel ID
+/// @param monitorID Monitor ID
 - (instancetype)initWithSession:(nonnull SpiceSession *)session channelID:(NSInteger)channelID monitorID:(NSInteger)monitorID NS_DESIGNATED_INITIALIZER;
-- (instancetype)initWithSession:(nonnull SpiceSession *)session channelID:(NSInteger)channelID;
 
 @end
 

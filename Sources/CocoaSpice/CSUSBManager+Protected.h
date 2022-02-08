@@ -22,6 +22,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface CSUSBManager ()
 
+/// Create a new USB manager from a SPICE USB manager
+/// @param usbDeviceManager SPICE USB manager
 - (instancetype)initWithUsbDeviceManager:(SpiceUsbDeviceManager *)usbDeviceManager NS_DESIGNATED_INITIALIZER;
 
 @end

@@ -41,6 +41,7 @@
 @property (nonatomic, nullable) SpiceDisplayChannel *display;
 @property (nonatomic, nullable) SpiceMainChannel *main;
 @property (nonatomic, nullable) SpiceCursorChannel *cursor;
+@property (nonatomic, readwrite) CGSize cursorSize;
 @property (nonatomic, readwrite) CGPoint cursorHotspot;
 @property (nonatomic, readwrite) BOOL cursorHidden;
 @property (nonatomic, readwrite) BOOL hasCursor;
@@ -512,10 +513,6 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
         g_list_free(list);
     }
     return self;
-}
-
-- (instancetype)initWithSession:(nonnull SpiceSession *)session channelID:(NSInteger)channelID {
-    return [self initWithSession:session channelID:channelID monitorID:0];
 }
 
 - (void)dealloc {

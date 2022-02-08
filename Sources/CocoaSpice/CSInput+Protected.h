@@ -22,6 +22,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface CSInput ()
 
+/// SPICE GTK session
+@property (nonatomic, readonly, nullable) SpiceSession *session;
+
+/// Create a new input for a SPICE session
+/// @param session SPICE session handling input
 - (instancetype)initWithSession:(SpiceSession *)session NS_DESIGNATED_INITIALIZER;
 
 @end

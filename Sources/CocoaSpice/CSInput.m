@@ -241,19 +241,13 @@ static int cs_button_to_spice(CSInputButton button)
     }
 }
 
-- (void)sendMouseButton:(CSInputButton)button pressed:(BOOL)pressed point:(CGPoint)point {
+- (void)sendMouseButton:(CSInputButton)button pressed:(BOOL)pressed {
     SPICE_DEBUG("%s %s: button %u", __FUNCTION__,
                   pressed ? "press" : "release",
                   (unsigned int)button);
     
     if (self.disableInputs)
         return;
-    
-    if ((point.x < 0 || point.y < 0) &&
-        !self.serverModeCursor) {
-        /* rule out clicks in outside region */
-        return;
-    }
     
     if (!self.inputs)
         return;

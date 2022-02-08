@@ -18,11 +18,18 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// Handles SPICE WebDAV based directory sharing
+///
+/// By default, if the server supports WebDAV directory sharing, the `Documents/Public` directory will be shared.
+/// The caller can change this to any directory by calling `-setSharedDirectory:readOnly:`.
 @interface CSSession (Sharing)
 
+/// Get path to `Documents/Public` either in the app sandbox or in the user's home directory
 @property (nonatomic, readonly) NSURL *defaultPublicShare;
 
-- (void)createDefaultShareReadme;
+/// Change the current shared directory
+/// @param path Local path to share (must be readable)
+/// @param readOnly Share as read-only to the server
 - (void)setSharedDirectory:(NSString *)path readOnly:(BOOL)readOnly;
 
 @end

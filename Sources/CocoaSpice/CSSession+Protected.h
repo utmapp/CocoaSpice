@@ -22,8 +22,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface CSSession ()
 
+/// SPICE GTK session
 @property (nonatomic, readonly, nullable) SpiceSession *session;
 
+/// Create a new handler for a SPICE session
+/// @param session SPICE session
 - (instancetype)initWithSession:(nonnull SpiceSession *)session;
 
 @end

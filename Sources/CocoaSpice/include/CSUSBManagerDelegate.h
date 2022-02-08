@@ -21,10 +21,25 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// Implement this protocol to handle `CSUSBManager` events
 @protocol CSUSBManagerDelegate <NSObject>
 
+/// Called when a connected device has errored
+/// @param usbManager USB manager for this session
+/// @param error Details of the error (in English)
+/// @param device Device that errored
 - (void)spiceUsbManager:(CSUSBManager *)usbManager deviceError:(NSString *)error forDevice:(CSUSBDevice *)device;
+
+/// Called when a local USB device is attached
+/// @param usbManager USB manager for this session
+/// @param device Device that is attached
 - (void)spiceUsbManager:(CSUSBManager *)usbManager deviceAttached:(CSUSBDevice *)device;
+
+/// Called when a local USB device is removed
+///
+/// Note that the USB manager has already disconnected this device and the caller does not need to do it.
+/// @param usbManager USB manager for this session
+/// @param device Device that is removed
 - (void)spiceUsbManager:(CSUSBManager *)usbManager deviceRemoved:(CSUSBDevice *)device;
 
 @end

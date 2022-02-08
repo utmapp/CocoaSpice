@@ -16,6 +16,7 @@
 
 #import <Foundation/Foundation.h>
 
+/// Supported pasteboard types
 typedef NS_ENUM(NSInteger, CSPasteboardType) {
     kCSPasteboardTypeURL = 0,
     kCSPasteboardTypeBmp = 1,
@@ -33,18 +34,40 @@ typedef NS_ENUM(NSInteger, CSPasteboardType) {
     kCSPasteboardTypeTiff = 13,
 };
 
+/// Notification posted when pasteboard changes
 extern const NSNotificationName _Nonnull CSPasteboardChangedNotification;
+
+/// Notification posted when an item is removed from the pasteboard
 extern const NSNotificationName _Nonnull CSPasteboardRemovedNotification;
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// Platform agnostic way to handle pasteboard events
+/// @related CSSession
 @protocol CSPasteboardDelegate <NSObject>
 
+/// Check if system supports reading pasteboard type
+/// @param type Pasteboard type
+/// @return true if type is supported
 - (BOOL)canReadItemForType:(CSPasteboardType)type;
+
+/// Get pasteboard data from system
+/// @param type Pasteboard type
 - (NSData *)dataForType:(CSPasteboardType)type;
+
+/// Sets pasteboard data in system
+/// @param data Pasteboard data
+/// @param type Pasteboard type
 - (void)setData:(NSData *)data forType:(CSPasteboardType)type;
+
+/// Gets a string type pasteboard item from system
 - (NSString *)string;
+
+/// Sets a string type pasteboard item to system
+/// @param string Pasteboard data
 - (void)setString:(NSString *)string;
+
+/// Clears the pasteboard
 - (void)clearContents;
 
 @end
