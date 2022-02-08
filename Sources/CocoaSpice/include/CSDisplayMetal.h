@@ -15,8 +15,8 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "CSRenderSource.h"
 @import CoreGraphics;
+@import CocoaSpiceRenderer;
 
 @class CSScreenshot;
 

@@ -591,7 +591,7 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
 
 - (void)rebuildDisplayVertices {
     // We flip the y-coordinates because pixman renders flipped
-    CSDisplayVertex quadVertices[] =
+    CSRenderVertex quadVertices[] =
     {
         // Pixel positions, Texture coordinates
         { {  self.visibleArea.size.width/2,   self.visibleArea.size.height/2 },  { 1.f, 0.f } },
@@ -609,7 +609,7 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
                                                    options:MTLResourceStorageModeShared];
 
     // Calculate the number of vertices by dividing the byte length by the size of each vertex
-    self.displayNumVertices = sizeof(quadVertices) / sizeof(CSDisplayVertex);
+    self.displayNumVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
 }
 
 - (void)drawRegion:(CGRect)rect {
@@ -672,7 +672,7 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     self.cursorTexture = [self.device newTextureWithDescriptor:textureDescriptor];
 
     // We flip the y-coordinates because pixman renders flipped
-    CSDisplayVertex quadVertices[] =
+    CSRenderVertex quadVertices[] =
     {
      // Pixel positions, Texture coordinates
      { { -hotspot.x + size.width, hotspot.y               },  { 1.f, 0.f } },
@@ -690,7 +690,7 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
                                                   options:MTLResourceStorageModeShared];
 
     // Calculate the number of vertices by dividing the byte length by the size of each vertex
-    self.cursorNumVertices = sizeof(quadVertices) / sizeof(CSDisplayVertex);
+    self.cursorNumVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
     self.cursorSize = size;
     self.cursorHotspot = hotspot;
     self.hasCursor = YES;

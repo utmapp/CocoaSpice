@@ -19,6 +19,33 @@
 
 #include <simd/simd.h>
 
+// Buffer index values shared between shader and C code to ensure Metal shader buffer inputs match
+//   Metal API buffer set calls
+typedef enum CSRenderVertexInputIndex
+{
+    CSRenderVertexInputIndexVertices     = 0,
+    CSRenderVertexInputIndexViewportSize = 1,
+    CSRenderVertexInputIndexTransform    = 2,
+    CSRenderVertexInputIndexHasAlpha     = 3,
+} CSRenderVertexInputIndex;
+
+// Texture index values shared between shader and C code to ensure Metal shader buffer inputs match
+//   Metal API texture set calls
+typedef enum CSRenderTextureIndex
+{
+    CSRenderTextureIndexBaseColor = 0,
+} CSRenderTextureIndex;
+
+typedef enum CSRenderSamplerIndex
+{
+    CSRenderSamplerIndexTexture = 0,
+} CSRenderSamplerIndex;
+
+typedef enum CSRenderFragmentBufferIndex
+{
+    CSRenderFragmentBufferIndexIsInverted = 0,
+} CSRenderFragmentBufferIndex;
+
 //  This structure defines the layout of each vertex in the array of vertices set as an input to our
 //    Metal vertex shader.  Since this header is shared between our .metal shader and C code,
 //    we can be sure that the layout of the vertex array in the code matches the layout that
@@ -30,6 +57,6 @@ typedef struct
 
     // 2D texture coordinate
     vector_float2 textureCoordinate;
-} CSDisplayVertex;
+} CSRenderVertex;
 
 #endif /* CSShaderTypes_h */

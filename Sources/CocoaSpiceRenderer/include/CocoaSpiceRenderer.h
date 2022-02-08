@@ -14,23 +14,11 @@
 // limitations under the License.
 //
 
-#ifndef CocoaSpice_h
-#define CocoaSpice_h
+#ifndef CocoaSpiceRenderer_h
+#define CocoaSpiceRenderer_h
 
-#include "CSConnection.h"
-#include "CSConnectionDelegate.h"
-#include "CSDisplayMetal.h"
-#include "CSInput.h"
-#include "CSMain.h"
-#include "CSPasteboardDelegate.h"
-#include "CSScreenshot.h"
-#include "CSSession.h"
-#include "CSSession+Sharing.h"
-#include "CSUSBDevice.h"
-#include "CSUSBManager.h"
-#include "CSUSBManagerDelegate.h"
+#include "CSRenderer.h"
+#include "CSRenderSource.h"
+#include "CSShaderTypes.h"
 
-#define GLIB_OBJC_RETAIN(x) (__bridge_retained void *)(x)
-#define GLIB_OBJC_RELEASE(x) (__bridge void *)(__bridge_transfer NSObject *)(__bridge void *)(x)
-
-#endif /* CocoaSpice_h */
+#endif /* CocoaSpiceRenderer_h */

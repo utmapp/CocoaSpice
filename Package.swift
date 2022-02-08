@@ -14,8 +14,12 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "CocoaSpiceRenderer",
+            dependencies: []),
+        .target(
             name: "CocoaSpice",
-            dependencies: [],
+            dependencies: ["CocoaSpiceRenderer"],
+            exclude: ["ExternalHeaders"],
             cSettings: [
                 .define("WITH_USB_SUPPORT"),
                 .headerSearchPath("ExternalHeaders"),
@@ -26,8 +30,9 @@ let package = Package(
                 .headerSearchPath("ExternalHeaders/spice-client-glib-2.0")]),
         .target(
             name: "CocoaSpiceNoUsb",
-            dependencies: [],
+            dependencies: ["CocoaSpiceRenderer"],
             exclude: [
+                "ExternalHeaders",
                 "CSUSBDevice.m",
                 "CSUSBManager.m"],
             cSettings: [
