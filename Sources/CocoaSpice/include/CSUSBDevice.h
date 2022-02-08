@@ -16,18 +16,13 @@
 
 #import <Foundation/Foundation.h>
 
-typedef struct _SpiceUsbDevice SpiceUsbDevice;
-
 NS_ASSUME_NONNULL_BEGIN
 
 @interface CSUSBDevice : NSObject
 
-@property (nonatomic, readonly) SpiceUsbDevice *device;
 @property (nonatomic, nullable, readonly) NSString *name;
 
-+ (instancetype)usbDeviceWithDevice:(SpiceUsbDevice *)device;
 - (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithDevice:(SpiceUsbDevice *)device;
 - (BOOL)isEqualToUSBDevice:(CSUSBDevice *)usbDevice;
 
 @end

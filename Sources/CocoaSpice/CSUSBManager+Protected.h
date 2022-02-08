@@ -14,26 +14,15 @@
 // limitations under the License.
 //
 
-#import <Foundation/Foundation.h>
-#import "CSRenderSource.h"
-@import CoreGraphics;
+#import "CSUSBManager.h"
 
-@class CSScreenshot;
+typedef struct _SpiceUsbDeviceManager SpiceUsbDeviceManager;
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface CSDisplayMetal : NSObject <CSRenderSource>
+@interface CSUSBManager ()
 
-@property (nonatomic, assign) CGSize displaySize;
-@property (nonatomic, readonly) CSScreenshot *screenshot;
-@property (nonatomic, assign) BOOL inhibitCursor;
-@property (nonatomic) CGSize cursorSize;
-@property (nonatomic, readonly) BOOL isPrimaryDisplay;
-
-- (instancetype)init NS_UNAVAILABLE;
-- (void)updateVisibleAreaWithRect:(CGRect)rect;
-- (void)requestResolution:(CGRect)bounds;
-- (void)forceCursorPosition:(CGPoint)pos;
+- (instancetype)initWithUsbDeviceManager:(SpiceUsbDeviceManager *)usbDeviceManager NS_DESIGNATED_INITIALIZER;
 
 @end
 

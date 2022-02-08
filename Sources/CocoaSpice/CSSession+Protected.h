@@ -14,26 +14,17 @@
 // limitations under the License.
 //
 
-#import <Foundation/Foundation.h>
-#import "CSRenderSource.h"
-@import CoreGraphics;
+#import "CSSession.h"
 
-@class CSScreenshot;
+typedef struct _SpiceSession SpiceSession;
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface CSDisplayMetal : NSObject <CSRenderSource>
+@interface CSSession ()
 
-@property (nonatomic, assign) CGSize displaySize;
-@property (nonatomic, readonly) CSScreenshot *screenshot;
-@property (nonatomic, assign) BOOL inhibitCursor;
-@property (nonatomic) CGSize cursorSize;
-@property (nonatomic, readonly) BOOL isPrimaryDisplay;
+@property (nonatomic, readonly, nullable) SpiceSession *session;
 
-- (instancetype)init NS_UNAVAILABLE;
-- (void)updateVisibleAreaWithRect:(CGRect)rect;
-- (void)requestResolution:(CGRect)bounds;
-- (void)forceCursorPosition:(CGPoint)pos;
+- (instancetype)initWithSession:(nonnull SpiceSession *)session;
 
 @end
 

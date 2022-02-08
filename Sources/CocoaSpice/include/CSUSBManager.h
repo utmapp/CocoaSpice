@@ -17,7 +17,6 @@
 #import <Foundation/Foundation.h>
 #import "CSUSBManagerDelegate.h"
 
-typedef struct _SpiceUsbDeviceManager SpiceUsbDeviceManager;
 typedef void (^CSUSBManagerConnectionCallback)(BOOL, NSString * _Nullable);
 
 NS_ASSUME_NONNULL_BEGIN
@@ -33,7 +32,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL isBusy;
 
 - (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithUsbDeviceManager:(SpiceUsbDeviceManager *)usbDeviceManager NS_DESIGNATED_INITIALIZER;
 - (BOOL)canRedirectUsbDevice:(CSUSBDevice *)usbDevice errorMessage:(NSString * _Nullable * _Nullable)errorMessage;
 - (BOOL)isUsbDeviceConnected:(CSUSBDevice *)usbDevice;
 - (void)connectUsbDevice:(CSUSBDevice *)usbDevice withCompletion:(CSUSBManagerConnectionCallback)completion;

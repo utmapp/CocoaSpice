@@ -34,6 +34,7 @@
 
 @interface CSDisplayMetal ()
 
+@property (nonatomic, assign) BOOL ready;
 @property (nonatomic, readwrite, nullable) SpiceSession *session;
 @property (nonatomic, readwrite, assign) NSInteger channelID;
 @property (nonatomic, readwrite, assign) NSInteger monitorID;
@@ -51,7 +52,7 @@
 @property (nonatomic) dispatch_semaphore_t canvasLock;
 @property (nonatomic) gint canvasFormat;
 @property (nonatomic) gint canvasStride;
-@property (nonatomic) const void *canvasData;
+@property (nonatomic, nullable) const void *canvasData;
 @property (nonatomic) CGRect canvasArea;
 
 // Other Drawing
@@ -471,6 +472,10 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     } else {
         return self.canvasTexture;
     }
+}
+
+- (BOOL)isPrimaryDisplay {
+    return self.channelID == 0 && self.monitorID == 0;
 }
 
 #pragma mark - Methods

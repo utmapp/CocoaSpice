@@ -15,6 +15,7 @@
 //
 
 #import "CocoaSpice.h"
+#import "CSUSBDevice+Protected.h"
 #import <glib.h>
 #import <spice-client.h>
 

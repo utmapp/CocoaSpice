@@ -15,10 +15,7 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "CSRenderSource.h"
 @import CoreGraphics;
-
-typedef struct _SpiceSession SpiceSession;
 
 typedef NS_ENUM(NSInteger, CSInputKey) {
     kCSInputKeyPress,
@@ -56,7 +53,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)requestMouseMode:(BOOL)server;
 
 - (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithSession:(SpiceSession *)session NS_DESIGNATED_INITIALIZER;
 
 @end
 

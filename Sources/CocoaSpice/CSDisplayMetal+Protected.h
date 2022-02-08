@@ -14,17 +14,20 @@
 // limitations under the License.
 //
 
-#import "CSSession.h"
+#import "CSDisplayMetal.h"
 
 typedef struct _SpiceSession SpiceSession;
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface CSSession (Private)
+@interface CSDisplayMetal ()
 
 @property (nonatomic, readonly, nullable) SpiceSession *session;
+@property (nonatomic, readonly) NSInteger channelID;
+@property (nonatomic, readonly) NSInteger monitorID;
 
-- (instancetype)initWithSession:(nonnull SpiceSession *)session;
+- (instancetype)initWithSession:(nonnull SpiceSession *)session channelID:(NSInteger)channelID monitorID:(NSInteger)monitorID NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithSession:(nonnull SpiceSession *)session channelID:(NSInteger)channelID;
 
 @end
 

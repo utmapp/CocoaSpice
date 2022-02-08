@@ -15,7 +15,6 @@
 //
 
 #import "CocoaSpice.h"
-#import "CSSession+Private.h"
 #import <glib.h>
 #import <spice-client.h>
 #import <spice/vd_agent.h>
