@@ -18,7 +18,9 @@ let package = Package(
     targets: [
         .target(
             name: "CocoaSpiceRenderer",
-            dependencies: []),
+            dependencies: [],
+            resources: [
+                .process("CSShaders.metal")]),
         .target(
             name: "CocoaSpice",
             dependencies: ["CocoaSpiceRenderer"],
