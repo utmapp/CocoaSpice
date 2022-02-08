@@ -58,7 +58,7 @@
 @property (nonatomic) CGRect visibleArea;
 @property (nonatomic) CGPoint mouseGuest;
 
-// UTMRenderSource properties
+// CSRenderSource properties
 @property (nonatomic, nullable, readwrite) id<MTLTexture> canvasTexture;
 @property (nonatomic, nullable, readwrite) id<MTLTexture> glTexture;
 @property (nonatomic, nullable, readwrite) id<MTLTexture> cursorTexture;
@@ -69,7 +69,13 @@
 
 @end
 
-@implementation CSDisplayMetal
+@implementation CSDisplayMetal {
+    id<MTLDevice> _device;
+}
+
+@synthesize viewportOrigin;
+
+@synthesize viewportScale;
 
 #pragma mark - Display events
 
@@ -409,6 +415,10 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     }
     
     return;
+}
+
+- (id<MTLDevice>)device {
+    return _device;
 }
 
 - (void)setDevice:(id<MTLDevice>)device {

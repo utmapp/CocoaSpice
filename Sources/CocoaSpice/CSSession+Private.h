@@ -14,15 +14,17 @@
 // limitations under the License.
 //
 
-#import <Foundation/Foundation.h>
-#import "CSPasteboardDelegate.h"
+#import "CSSession.h"
+
+typedef struct _SpiceSession SpiceSession;
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface CSSession : NSObject
+@interface CSSession (Private)
 
-@property (nonatomic) BOOL shareClipboard;
-@property (nonatomic, weak, nullable) id<CSPasteboardDelegate> pasteboardDelegate;
+@property (nonatomic, readonly, nullable) SpiceSession *session;
+
+- (instancetype)initWithSession:(nonnull SpiceSession *)session;
 
 @end
 

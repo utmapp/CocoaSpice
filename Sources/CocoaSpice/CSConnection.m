@@ -15,6 +15,7 @@
 //
 
 #import "CocoaSpice.h"
+#import "CSSession+Private.h"
 #import <glib.h>
 #import <spice-client.h>
 #import <spice/vd_agent.h>
@@ -275,7 +276,7 @@ static void cs_connection_destroy(SpiceSession *session,
     g_signal_connect(self.spiceSession, "disconnected",
                      G_CALLBACK(cs_connection_destroy), GLIB_OBJC_RETAIN(self));
     
-#if !defined(WITH_QEMU_TCI)
+#if !defined(WITH_USB_SUPPORT)
     SpiceUsbDeviceManager *manager = spice_usb_device_manager_get(self.spiceSession, NULL);
     g_assert(manager != NULL);
     self.usbManager = [[CSUSBManager alloc] initWithUsbDeviceManager:manager];

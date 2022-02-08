@@ -27,7 +27,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) NSArray<CSDisplayMetal *> *monitors;
 @property (nonatomic, readonly) CSSession *session;
 @property (nonatomic, readonly) CSInput *input;
-#if !defined(WITH_QEMU_TCI)
+#if !defined(WITH_USB_SUPPORT)
 @property (nonatomic, readonly) CSUSBManager *usbManager;
 #endif
 @property (nonatomic, weak, nullable) id<CSConnectionDelegate> delegate;

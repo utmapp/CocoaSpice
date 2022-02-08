@@ -15,6 +15,7 @@
 //
 
 #import "CSSession+Sharing.h"
+#import "CSSession+Private.h"
 #import <spice-client.h>
 
 static const NSString *const kDefaultShareReadme =

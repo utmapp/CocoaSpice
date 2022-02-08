@@ -19,10 +19,10 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@protocol UTMRenderSource <NSObject>
+@protocol CSRenderSource <NSObject>
 
 @property (nonatomic, readonly) BOOL cursorVisible;
-@property (nonatomic) CGPoint cursorOrigin;
+@property (nonatomic, readonly) CGPoint cursorOrigin;
 @property (nonatomic) CGPoint viewportOrigin;
 @property (nonatomic) CGFloat viewportScale;
 @property (nonatomic, nullable) id<MTLDevice> device;
