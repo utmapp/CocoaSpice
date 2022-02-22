@@ -438,11 +438,11 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
     
     dispatch_semaphore_wait(self.canvasLock, DISPATCH_TIME_FOREVER);
-    if (self.canvasData) { // may be destroyed at this point
+    if (!self.isGLEnabled && self.canvasData) { // may be destroyed at this point
         CGDataProviderRef dataProviderRef = CGDataProviderCreateWithData(NULL, self.canvasData, self.canvasStride * self.canvasArea.size.height, nil);
         img = CGImageCreate(self.canvasArea.size.width, self.canvasArea.size.height, 8, 32, self.canvasStride, colorSpaceRef, kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst, dataProviderRef, NULL, NO, kCGRenderingIntentDefault);
         CGDataProviderRelease(dataProviderRef);
-    } else if (self.glTexture) {
+    } else if (self.isGLEnabled && self.glTexture) {
         CIImage *ciimage = [[CIImage alloc] initWithMTLTexture:self.glTexture options:nil];
         CIImage *flipped = [ciimage imageByApplyingOrientation:kCGImagePropertyOrientationDownMirrored];
         CIContext *cictx = [CIContext context];
