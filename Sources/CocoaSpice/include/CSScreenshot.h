@@ -56,7 +56,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Create a screenshot from a PNG file
 /// @param url File URL of PNG
-- (instancetype)initWithContentsOfURL:(NSURL *)url;
+- (nullable instancetype)initWithContentsOfURL:(NSURL *)url;
 
 /// Writes a screenshot image to a PNG file
 /// @param url File URL of PNG destination

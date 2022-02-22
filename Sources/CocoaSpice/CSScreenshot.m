@@ -29,7 +29,11 @@
 
 - (instancetype)initWithContentsOfURL:(NSURL *)url {
     UIImage *image = [[UIImage alloc] initWithContentsOfFile:url.path];
-    return [self initWithImage:image];
+    if (image) {
+        return [self initWithImage:image];
+    } else {
+        return nil;
+    }
 }
 
 - (void)writeToURL:(NSURL *)url atomically:(BOOL)atomically {
