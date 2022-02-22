@@ -19,6 +19,7 @@
 #import "CocoaSpice.h"
 #import "CSShaderTypes.h"
 #import <glib.h>
+#import <poll.h>
 #import <spice-client.h>
 #import <spice/protocol.h>
 #import <IOSurface/IOSurfaceRef.h>
@@ -562,6 +563,20 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
         perror("read");
         return;
     }
+    // check for POLLHUP which indicates the surface ID is stale as the sender has deallocated the surface
+    struct pollfd ufd = {0};
+    ufd.fd = self.scanout.fd;
+    ufd.events = POLLIN;
+    if (poll(&ufd, 1, 0) < 0) {
+        SPICE_DEBUG("[CocoaSpice] Failed to poll fd: %d", self.scanout.fd);
+        perror("poll");
+        return;
+    }
+    if ((ufd.revents & POLLHUP) != 0) {
+        SPICE_DEBUG("[CocoaSpice] Stale surface id %x read from fd %d, ignoring", iosurfaceid, self.scanout.fd);
+        return;
+    }
+    
     if ((iosurface = IOSurfaceLookup(iosurfaceid)) == NULL) {
         SPICE_DEBUG("[CocoaSpice] Failed to lookup surface: %d", iosurfaceid);
         return;
