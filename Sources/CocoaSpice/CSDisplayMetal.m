@@ -653,20 +653,24 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
         SPICE_DEBUG("[CocoaSpice] ignoring change resolution because main channel not found");
         return;
     }
-    spice_main_channel_update_display_enabled(self.main, (int)self.monitorID, TRUE, FALSE);
-    spice_main_channel_update_display(self.main,
-                                      (int)self.monitorID,
-                                      bounds.origin.x,
-                                      bounds.origin.y,
-                                      bounds.size.width,
-                                      bounds.size.height,
-                                      TRUE);
-    spice_main_channel_send_monitor_config(self.main);
+    [CSMain.sharedInstance asyncWith:^{
+        spice_main_channel_update_display_enabled(self.main, (int)self.monitorID, TRUE, FALSE);
+        spice_main_channel_update_display(self.main,
+                                          (int)self.monitorID,
+                                          bounds.origin.x,
+                                          bounds.origin.y,
+                                          bounds.size.width,
+                                          bounds.size.height,
+                                          TRUE);
+        spice_main_channel_send_monitor_config(self.main);
+    }];
 }
 
 - (void)rendererFrameHasRendered {
     if (self.isGLEnabled && !self.hasGLDrawAck) {
-        spice_display_channel_gl_draw_done(self.display);
+        [CSMain.sharedInstance asyncWith:^{
+            spice_display_channel_gl_draw_done(self.display);
+        }];
         self.hasGLDrawAck = YES;
     }
 }

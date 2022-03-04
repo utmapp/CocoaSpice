@@ -196,10 +196,12 @@ static gboolean cs_clipboard_grab(SpiceMainChannel *main, guint selection,
         return TRUE;
     }
 
-    for (int n = 0; n < ntypes; ++n) {
-        spice_main_channel_clipboard_selection_request(self->_main, selection,
-                                                       types[n]);
-    }
+    [CSMain.sharedInstance asyncWith:^{
+        for (int n = 0; n < ntypes; ++n) {
+            spice_main_channel_clipboard_selection_request(self->_main, selection,
+                                                           types[n]);
+        }
+    }];
 
     return TRUE;
 }
@@ -222,7 +224,9 @@ static gboolean cs_clipboard_request(SpiceMainChannel *main, guint selection,
     CSPasteboardType cspbType = cspbTypeForClipboardType(type);
     NSData *data = [self.pasteboardDelegate dataForType:cspbType];
     if (data) {
-        spice_main_channel_clipboard_selection_notify(self->_main, selection, type, data.bytes, data.length);
+        [CSMain.sharedInstance asyncWith:^{
+            spice_main_channel_clipboard_selection_notify(self->_main, selection, type, data.bytes, data.length);
+        }];
     }
 
     return TRUE;
@@ -351,7 +355,10 @@ static void cs_channel_destroy(SpiceSession *session, SpiceChannel *channel,
         SPICE_DEBUG("[CocoaSpice] pasteboard with unrecognized type");
     }
     if (spice_main_channel_agent_test_capability(self->_main, VD_AGENT_CAP_CLIPBOARD_BY_DEMAND)) {
-        spice_main_channel_clipboard_selection_grab(self->_main, VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD, &type, 1);
+        [CSMain.sharedInstance asyncWith:^{
+            guint32 _type = type;
+            spice_main_channel_clipboard_selection_grab(self->_main, VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD, &_type, 1);
+        }];
     }
 }
 
@@ -360,9 +367,11 @@ static void cs_channel_destroy(SpiceSession *session, SpiceChannel *channel,
     if (!self.shareClipboard || self.sessionReadOnly) {
         return;
     }
-    guint32 type = VD_AGENT_CLIPBOARD_UTF8_TEXT;
     if (spice_main_channel_agent_test_capability(self->_main, VD_AGENT_CAP_CLIPBOARD_BY_DEMAND)) {
-        spice_main_channel_clipboard_selection_grab(self->_main, VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD, &type, 1);
+        [CSMain.sharedInstance asyncWith:^{
+            guint32 type = VD_AGENT_CLIPBOARD_UTF8_TEXT;
+            spice_main_channel_clipboard_selection_grab(self->_main, VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD, &type, 1);
+        }];
     }
 }
 

@@ -86,18 +86,20 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
 #pragma mark - Key handling
 
 - (void)sendPause:(CSInputKey)type {
-    /* Send proper scancodes. This will send same scancodes
-     * as hardware.
-     * The 0x21d is a sort of Third-Ctrl while
-     * 0x45 is the NumLock.
-     */
-    if (type == kCSInputKeyPress) {
-        spice_inputs_channel_key_press(self.inputs, 0x21d);
-        spice_inputs_channel_key_press(self.inputs, 0x45);
-    } else {
-        spice_inputs_channel_key_release(self.inputs, 0x21d);
-        spice_inputs_channel_key_release(self.inputs, 0x45);
-    }
+    [CSMain.sharedInstance asyncWith:^{
+        /* Send proper scancodes. This will send same scancodes
+         * as hardware.
+         * The 0x21d is a sort of Third-Ctrl while
+         * 0x45 is the NumLock.
+         */
+        if (type == kCSInputKeyPress) {
+            spice_inputs_channel_key_press(self.inputs, 0x21d);
+            spice_inputs_channel_key_press(self.inputs, 0x45);
+        } else {
+            spice_inputs_channel_key_release(self.inputs, 0x21d);
+            spice_inputs_channel_key_release(self.inputs, 0x45);
+        }
+    }];
 }
 
 - (void)sendKey:(CSInputKey)type code:(int)scancode {
@@ -116,26 +118,28 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     m = (1u << b);
     g_return_if_fail(i < SPICE_N_ELEMENTS(self->_key_state));
     
-    switch (type) {
-        case kCSInputKeyPress:
-            spice_inputs_channel_key_press(self.inputs, scancode);
-            
-            self->_key_state[i] |= m;
-            break;
-            
-        case kCSInputKeyRelease:
-            if (!(self->_key_state[i] & m))
+    [CSMain.sharedInstance asyncWith:^{
+        switch (type) {
+            case kCSInputKeyPress:
+                spice_inputs_channel_key_press(self.inputs, scancode);
+                
+                self->_key_state[i] |= m;
                 break;
-            
-            
-            spice_inputs_channel_key_release(self.inputs, scancode);
-            
-            self->_key_state[i] &= ~m;
-            break;
-            
-        default:
-            g_warn_if_reached();
-    }
+                
+            case kCSInputKeyRelease:
+                if (!(self->_key_state[i] & m))
+                    break;
+                
+                
+                spice_inputs_channel_key_release(self.inputs, scancode);
+                
+                self->_key_state[i] &= ~m;
+                break;
+                
+            default:
+                g_warn_if_reached();
+        }
+    }];
 }
 
 - (void)releaseKeys {
@@ -189,13 +193,15 @@ static int cs_button_to_spice(CSInputButton button)
     if (self.disableInputs)
         return;
     
-    if (self.serverModeCursor) {
-        spice_inputs_channel_motion(self.inputs, point.x, point.y,
-                                    cs_button_mask_to_spice(button));
-    } else {
-        spice_inputs_channel_position(self.inputs, point.x, point.y, (int)monitorID,
-                                      cs_button_mask_to_spice(button));
-    }
+    [CSMain.sharedInstance asyncWith:^{
+        if (self.serverModeCursor) {
+            spice_inputs_channel_motion(self.inputs, point.x, point.y,
+                                        cs_button_mask_to_spice(button));
+        } else {
+            spice_inputs_channel_position(self.inputs, point.x, point.y, (int)monitorID,
+                                          cs_button_mask_to_spice(button));
+        }
+    }];
 }
 
 // FIXME: remove this when multiple displays are implemented properly
@@ -213,32 +219,34 @@ static int cs_button_to_spice(CSInputButton button)
     if (self.disableInputs)
         return;
     
-    switch (type) {
-        case kCSInputScrollUp:
-            spice_inputs_channel_button_press(self.inputs, SPICE_MOUSE_BUTTON_UP, button_state);
-            spice_inputs_channel_button_release(self.inputs, SPICE_MOUSE_BUTTON_UP, button_state);
-            break;
-        case kCSInputScrollDown:
-            spice_inputs_channel_button_press(self.inputs, SPICE_MOUSE_BUTTON_DOWN, button_state);
-            spice_inputs_channel_button_release(self.inputs, SPICE_MOUSE_BUTTON_DOWN, button_state);
-            break;
-        case kCSInputScrollSmooth:
-            self->_scroll_delta_y += dy;
-            while (ABS(self->_scroll_delta_y) >= 1) {
-                if (self->_scroll_delta_y < 0) {
-                    spice_inputs_channel_button_press(self.inputs, SPICE_MOUSE_BUTTON_UP, button_state);
-                    spice_inputs_channel_button_release(self.inputs, SPICE_MOUSE_BUTTON_UP, button_state);
-                    self->_scroll_delta_y += 1;
-                } else {
-                    spice_inputs_channel_button_press(self.inputs, SPICE_MOUSE_BUTTON_DOWN, button_state);
-                    spice_inputs_channel_button_release(self.inputs, SPICE_MOUSE_BUTTON_DOWN, button_state);
-                    self->_scroll_delta_y -= 1;
+    [CSMain.sharedInstance asyncWith:^{
+        switch (type) {
+            case kCSInputScrollUp:
+                spice_inputs_channel_button_press(self.inputs, SPICE_MOUSE_BUTTON_UP, button_state);
+                spice_inputs_channel_button_release(self.inputs, SPICE_MOUSE_BUTTON_UP, button_state);
+                break;
+            case kCSInputScrollDown:
+                spice_inputs_channel_button_press(self.inputs, SPICE_MOUSE_BUTTON_DOWN, button_state);
+                spice_inputs_channel_button_release(self.inputs, SPICE_MOUSE_BUTTON_DOWN, button_state);
+                break;
+            case kCSInputScrollSmooth:
+                self->_scroll_delta_y += dy;
+                while (ABS(self->_scroll_delta_y) >= 1) {
+                    if (self->_scroll_delta_y < 0) {
+                        spice_inputs_channel_button_press(self.inputs, SPICE_MOUSE_BUTTON_UP, button_state);
+                        spice_inputs_channel_button_release(self.inputs, SPICE_MOUSE_BUTTON_UP, button_state);
+                        self->_scroll_delta_y += 1;
+                    } else {
+                        spice_inputs_channel_button_press(self.inputs, SPICE_MOUSE_BUTTON_DOWN, button_state);
+                        spice_inputs_channel_button_release(self.inputs, SPICE_MOUSE_BUTTON_DOWN, button_state);
+                        self->_scroll_delta_y -= 1;
+                    }
                 }
-            }
-            break;
-        default:
-            SPICE_DEBUG("unsupported scroll direction");
-    }
+                break;
+            default:
+                SPICE_DEBUG("unsupported scroll direction");
+        }
+    }];
 }
 
 - (void)sendMouseButton:(CSInputButton)button pressed:(BOOL)pressed {
@@ -252,23 +260,27 @@ static int cs_button_to_spice(CSInputButton button)
     if (!self.inputs)
         return;
     
-    if (pressed) {
-        spice_inputs_channel_button_press(self.inputs,
-                                          cs_button_to_spice(button),
-                                          cs_button_mask_to_spice(button));
-    } else {
-        spice_inputs_channel_button_release(self.inputs,
-                                            cs_button_to_spice(button),
-                                            cs_button_mask_to_spice(button));
-    }
+    [CSMain.sharedInstance asyncWith:^{
+        if (pressed) {
+            spice_inputs_channel_button_press(self.inputs,
+                                              cs_button_to_spice(button),
+                                              cs_button_mask_to_spice(button));
+        } else {
+            spice_inputs_channel_button_release(self.inputs,
+                                                cs_button_to_spice(button),
+                                                cs_button_mask_to_spice(button));
+        }
+    }];
 }
 
 - (void)requestMouseMode:(BOOL)server {
-    if (server) {
-        spice_main_channel_request_mouse_mode(self.main, SPICE_MOUSE_MODE_SERVER);
-    } else {
-        spice_main_channel_request_mouse_mode(self.main, SPICE_MOUSE_MODE_CLIENT);
-    }
+    [CSMain.sharedInstance asyncWith:^{
+        if (server) {
+            spice_main_channel_request_mouse_mode(self.main, SPICE_MOUSE_MODE_SERVER);
+        } else {
+            spice_main_channel_request_mouse_mode(self.main, SPICE_MOUSE_MODE_CLIENT);
+        }
+    }];
 }
 
 #pragma mark - Initializers

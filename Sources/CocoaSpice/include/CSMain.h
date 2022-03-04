@@ -57,6 +57,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// @result It is unsafe to use any other API until `-spiceStart` is called again
 - (void)spiceStop;
 
+/// Run a block in the SPICE GTK main context
+/// @param block Block to run
+- (void)asyncWith:(dispatch_block_t)block;
+
 @end
 
 NS_ASSUME_NONNULL_END

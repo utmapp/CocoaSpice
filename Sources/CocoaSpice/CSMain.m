@@ -67,6 +67,7 @@ static void logHandler(const gchar *log_domain, GLogLevelFlags log_level,
 void *spice_main_loop(void *args) {
     CSMain *self = (__bridge_transfer CSMain *)args;
     
+    pthread_setname_np("SPICE Main Loop");
     gst_ios_init();
     
     g_main_context_ref(self->_main_context);
@@ -144,6 +145,17 @@ void *spice_main_loop(void *args) {
             self.spiceThread = NULL;
         }
     }
+}
+
+static gboolean callBlockInMainContext(gpointer data) {
+    dispatch_block_t block = (__bridge_transfer dispatch_block_t)data;
+    block();
+    return FALSE;
+}
+
+- (void)asyncWith:(dispatch_block_t)block {
+    gpointer data = (__bridge_retained void *)block;
+    g_main_context_invoke(self.glibMainContext, callBlockInMainContext, data);
 }
 
 @end
