@@ -48,7 +48,6 @@
 @property (nonatomic, readwrite) BOOL hasCursor;
 @property (nonatomic, readwrite) BOOL isGLEnabled;
 @property (nonatomic, readwrite) BOOL hasGLDrawAck;
-@property (nonatomic) SpiceGlScanout scanout;
 
 // Non-GL Canvas
 @property (nonatomic) dispatch_semaphore_t canvasLock;
@@ -283,9 +282,8 @@ static void cs_gl_scanout(SpiceDisplayChannel *channel, GParamSpec *pspec, gpoin
     
     self.isGLEnabled = YES;
     self.hasGLDrawAck = YES;
-    self.scanout = *scanout;
 
-    [self rebuildScanoutTexture];
+    [self rebuildScanoutTextureWithScanout:*scanout];
 }
 
 static void cs_gl_draw(SpiceDisplayChannel *channel,
@@ -428,7 +426,13 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     _device = device;
     [self rebuildDisplayVertices];
     if (self.isGLEnabled) {
-        [self rebuildScanoutTexture];
+        if (self.glTexture) {
+            // reuse surface from existing texture (
+            [self rebuildScanoutTextureWithSurface:self.glTexture.iosurface width:self.glTexture.width height:self.glTexture.height];
+        } else {
+            // get scanout information from SPICE
+            cs_gl_scanout(self.display, NULL, (__bridge void *)self);
+        }
     } else {
         [self rebuildCanvasTexture];
     }
@@ -533,7 +537,7 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
 - (void)updateVisibleAreaWithRect:(CGRect)rect {
     CGRect primary;
     if (self.isGLEnabled) {
-        primary = CGRectMake(0, 0, self.scanout.width, self.scanout.height);
+        primary = CGRectMake(0, 0, self.glTexture.width, self.glTexture.height);
     } else {
         primary = self.canvasArea;
     }
@@ -552,28 +556,28 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     }
 }
 
-- (void)rebuildScanoutTexture {
+- (void)rebuildScanoutTextureWithScanout:(SpiceGlScanout)scanout {
     if (!self.device) {
         return; // not ready
     }
     IOSurfaceID iosurfaceid = 0;
     IOSurfaceRef iosurface = NULL;
-    if (read(self.scanout.fd, &iosurfaceid, sizeof(iosurfaceid)) != sizeof(iosurfaceid)) {
-        SPICE_DEBUG("[CocoaSpice] Failed to read scanout fd: %d", self.scanout.fd);
+    if (read(scanout.fd, &iosurfaceid, sizeof(iosurfaceid)) != sizeof(iosurfaceid)) {
+        SPICE_DEBUG("[CocoaSpice] Failed to read scanout fd: %d", scanout.fd);
         perror("read");
         return;
     }
     // check for POLLHUP which indicates the surface ID is stale as the sender has deallocated the surface
     struct pollfd ufd = {0};
-    ufd.fd = self.scanout.fd;
+    ufd.fd = scanout.fd;
     ufd.events = POLLIN;
     if (poll(&ufd, 1, 0) < 0) {
-        SPICE_DEBUG("[CocoaSpice] Failed to poll fd: %d", self.scanout.fd);
+        SPICE_DEBUG("[CocoaSpice] Failed to poll fd: %d", scanout.fd);
         perror("poll");
         return;
     }
     if ((ufd.revents & POLLHUP) != 0) {
-        SPICE_DEBUG("[CocoaSpice] Stale surface id %x read from fd %d, ignoring", iosurfaceid, self.scanout.fd);
+        SPICE_DEBUG("[CocoaSpice] Stale surface id %x read from fd %d, ignoring", iosurfaceid, scanout.fd);
         return;
     }
     
@@ -581,14 +585,17 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
         SPICE_DEBUG("[CocoaSpice] Failed to lookup surface: %d", iosurfaceid);
         return;
     }
+    [self rebuildScanoutTextureWithSurface:iosurface width:scanout.width height:scanout.height];
+    CFRelease(iosurface);
+}
 
+- (void)rebuildScanoutTextureWithSurface:(IOSurfaceRef)surface width:(NSUInteger)width height:(NSUInteger)height {
     MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
     textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
-    textureDescriptor.width = self.scanout.width;
-    textureDescriptor.height = self.scanout.height;
+    textureDescriptor.width = width;
+    textureDescriptor.height = height;
     textureDescriptor.usage = MTLTextureUsageShaderRead;
-    self.glTexture = [self.device newTextureWithDescriptor:textureDescriptor iosurface:iosurface plane:0];
-    CFRelease(iosurface);
+    self.glTexture = [self.device newTextureWithDescriptor:textureDescriptor iosurface:surface plane:0];
 }
 
 - (void)rebuildCanvasTexture {
