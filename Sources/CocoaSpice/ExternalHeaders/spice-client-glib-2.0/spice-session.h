@@ -1,4 +1,3 @@
-/* -*- Mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
    Copyright (C) 2010 Red Hat, Inc.
 
@@ -36,6 +35,8 @@ G_BEGIN_DECLS
 #define SPICE_IS_SESSION(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), SPICE_TYPE_SESSION))
 #define SPICE_IS_SESSION_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), SPICE_TYPE_SESSION))
 #define SPICE_SESSION_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), SPICE_TYPE_SESSION, SpiceSessionClass))
+
+#define SPICE_WEBDAV_CLIPBOARD_FOLDER_PATH "/.spice-clipboard"
 
 /**
  * SpiceSessionVerify:
@@ -100,7 +101,7 @@ struct _SpiceSessionClass
      * If adding fields to this struct, remove corresponding
      * amount of padding to avoid changing overall struct size
      */
-    gchar _spice_reserved[SPICE_RESERVED_PADDING];
+    gpointer  _spice_reserved[10];
 };
 
 GType spice_session_get_type(void);

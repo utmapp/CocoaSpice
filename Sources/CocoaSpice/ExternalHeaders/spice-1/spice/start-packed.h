@@ -30,8 +30,8 @@
 */
 
 /* Ideally this should all have been macros in a common headers, but
- * its not possible to put pragmas into header files, so we have
- * to use include magic.
+ * its not possible to put pragmas into macros, so we have to use
+ * include magic.
  *
  * Use it like this:
  *

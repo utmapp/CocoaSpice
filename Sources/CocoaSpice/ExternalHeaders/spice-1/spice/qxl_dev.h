@@ -275,15 +275,10 @@ typedef struct SPICE_ATTR_ALIGNED(4) SPICE_ATTR_PACKED QXLRam {
 
 } QXLRam;
 
-typedef union QXLReleaseInfo {
+typedef union SPICE_ATTR_PACKED QXLReleaseInfo {
     uint64_t id;      // in
     uint64_t next;    // out
 } QXLReleaseInfo;
-
-typedef struct QXLReleaseInfoExt {
-    QXLReleaseInfo *info;
-    uint32_t group_id;
-} QXLReleaseInfoExt;
 
 typedef struct  SPICE_ATTR_PACKED QXLDataChunk {
     uint32_t data_size;
@@ -745,6 +740,9 @@ typedef struct SPICE_ATTR_PACKED QXLSurfaceId {
 
 typedef struct SPICE_ATTR_PACKED QXLQUICData {
     uint32_t data_size;
+    /* This data for QUIC is a QXLDataChunk.
+     * This differs from QXLBitmap where it's a reference to bitmap data or
+     * a reference to QXLDataChunk */
     uint8_t data[0];
 } QXLQUICData, QXLLZRGBData, QXLJPEGData;
 
@@ -778,5 +776,10 @@ typedef struct SPICE_ATTR_PACKED QXLMonitorsConfig {
 } QXLMonitorsConfig;
 
 #include <spice/end-packed.h>
+
+typedef struct QXLReleaseInfoExt {
+    QXLReleaseInfo *info;
+    uint32_t group_id;
+} QXLReleaseInfoExt;
 
 #endif /* _H_QXL_DEV */

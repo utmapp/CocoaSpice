@@ -1,4 +1,3 @@
-/* -*- Mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
    Copyright (C) 2010 Red Hat, Inc.
 
@@ -39,7 +38,8 @@ void spice_util_set_main_context(GMainContext *context);
             g_debug(G_STRLOC " " fmt, ## __VA_ARGS__);          \
     } while (0)
 
-#define SPICE_RESERVED_PADDING (10 * sizeof(void*))
+
+#define SPICE_RESERVED_PADDING (10 * sizeof(void*)) GLIB_DEPRECATED_MACRO
 
 G_END_DECLS
 

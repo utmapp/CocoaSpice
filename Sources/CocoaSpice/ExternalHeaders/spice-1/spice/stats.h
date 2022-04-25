@@ -62,6 +62,8 @@ typedef struct SpiceStat {
     uint32_t generation;
     uint32_t num_of_nodes;
     uint32_t root_index;
+    /* to avoid holes in the structure on some platforms */
+    uint32_t padding;
     SpiceStatNode nodes[];
 } SpiceStat;
 

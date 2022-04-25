@@ -1,4 +1,3 @@
-/* -*- Mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
    Copyright (C) 2010 Red Hat, Inc.
 
@@ -96,7 +95,7 @@ struct _SpiceAudioClass {
                                               guint16 **volume,
                                               GError **error);
 
-    gchar _spice_reserved[SPICE_RESERVED_PADDING - 4 * sizeof(void *)];
+    gpointer _spice_reserved[6];
 };
 
 GType spice_audio_get_type(void);

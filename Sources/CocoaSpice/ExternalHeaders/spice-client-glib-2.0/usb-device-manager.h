@@ -1,4 +1,3 @@
-/* -*- Mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
    Copyright (C) 2011, 2012 Red Hat, Inc.
 
@@ -84,15 +83,17 @@ struct _SpiceUsbDeviceManagerClass
     void (*device_removed) (SpiceUsbDeviceManager *manager,
                             SpiceUsbDevice *device);
     void (*auto_connect_failed) (SpiceUsbDeviceManager *manager,
-                                 SpiceUsbDevice *device, GError *error);
+                                 SpiceUsbDevice *device,
+                                 GError *error);
     void (*device_error) (SpiceUsbDeviceManager *manager,
-                          SpiceUsbDevice *device, GError *error);
+                          SpiceUsbDevice *device,
+                          GError *error);
     /*< private >*/
     /*
      * If adding fields to this struct, remove corresponding
      * amount of padding to avoid changing overall struct size
      */
-    gchar _spice_reserved[SPICE_RESERVED_PADDING];
+    gpointer _spice_reserved[10];
 };
 
 GType spice_usb_device_get_type(void);
@@ -105,30 +106,30 @@ SpiceUsbDeviceManager *spice_usb_device_manager_get(SpiceSession *session,
                                                     GError **err);
 
 GPtrArray *spice_usb_device_manager_get_devices(SpiceUsbDeviceManager *manager);
-GPtrArray* spice_usb_device_manager_get_devices_with_filter(
-    SpiceUsbDeviceManager *manager, const gchar *filter);
+GPtrArray* spice_usb_device_manager_get_devices_with_filter(SpiceUsbDeviceManager *manager,
+                                                            const gchar *filter);
 
 gboolean spice_usb_device_manager_is_device_connected(SpiceUsbDeviceManager *manager,
                                                       SpiceUsbDevice *device);
-void spice_usb_device_manager_connect_device_async(
-                                             SpiceUsbDeviceManager *self,
-                                             SpiceUsbDevice *device,
-                                             GCancellable *cancellable,
-                                             GAsyncReadyCallback callback,
-                                             gpointer user_data);
+void spice_usb_device_manager_connect_device_async(SpiceUsbDeviceManager *manager,
+                                                   SpiceUsbDevice *device,
+                                                   GCancellable *cancellable,
+                                                   GAsyncReadyCallback callback,
+                                                   gpointer user_data);
 
-void spice_usb_device_manager_disconnect_device_async(
-                                             SpiceUsbDeviceManager *self,
-                                             SpiceUsbDevice *device,
-                                             GCancellable *cancellable,
-                                             GAsyncReadyCallback callback,
-                                             gpointer user_data);
+void spice_usb_device_manager_disconnect_device_async(SpiceUsbDeviceManager *manager,
+                                                      SpiceUsbDevice *device,
+                                                      GCancellable *cancellable,
+                                                      GAsyncReadyCallback callback,
+                                                      gpointer user_data);
 
-gboolean spice_usb_device_manager_connect_device_finish(
-    SpiceUsbDeviceManager *self, GAsyncResult *res, GError **err);
+gboolean spice_usb_device_manager_connect_device_finish(SpiceUsbDeviceManager *manager,
+                                                        GAsyncResult *res,
+                                                        GError **err);
 
-gboolean spice_usb_device_manager_disconnect_device_finish(
-    SpiceUsbDeviceManager *self, GAsyncResult *res, GError **err);
+gboolean spice_usb_device_manager_disconnect_device_finish(SpiceUsbDeviceManager *manager,
+                                                           GAsyncResult *res,
+                                                           GError **err);
 
 #ifndef SPICE_DISABLE_DEPRECATED
 G_DEPRECATED_FOR(spice_usb_device_manager_disconnect_device_async)
@@ -137,11 +138,24 @@ void spice_usb_device_manager_disconnect_device(SpiceUsbDeviceManager *manager,
 #endif
 
 gboolean
-spice_usb_device_manager_can_redirect_device(SpiceUsbDeviceManager  *self,
-                                             SpiceUsbDevice         *device,
-                                             GError                **err);
+spice_usb_device_manager_can_redirect_device(SpiceUsbDeviceManager *manager,
+                                             SpiceUsbDevice *device,
+                                             GError **err);
 
-gboolean spice_usb_device_manager_is_redirecting(SpiceUsbDeviceManager *self);
+gboolean spice_usb_device_manager_is_redirecting(SpiceUsbDeviceManager *manager);
+
+gboolean
+spice_usb_device_manager_create_shared_cd_device(SpiceUsbDeviceManager *manager,
+                                                 gchar *filename,
+                                                 GError **err);
+gboolean
+spice_usb_device_manager_is_device_shared_cd(SpiceUsbDeviceManager *manager,
+                                             SpiceUsbDevice *device);
+
+SpiceUsbDevice *
+spice_usb_device_manager_allocate_device_for_file_descriptor(SpiceUsbDeviceManager *manager,
+                                                             int file_descriptor,
+                                                             GError **err);
 
 G_END_DECLS
 

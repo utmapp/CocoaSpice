@@ -1,4 +1,3 @@
-/* -*- Mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
    Copyright (C) 2010 Red Hat, Inc.
 
@@ -150,6 +149,8 @@ gboolean        spice_display_channel_get_primary(SpiceChannel *channel, guint32
 
 void spice_display_channel_change_preferred_compression(SpiceChannel *channel, gint compression);
 void spice_display_channel_change_preferred_video_codec_type(SpiceChannel *channel, gint codec_type);
+gboolean spice_display_channel_change_preferred_video_codec_types(SpiceChannel *channel, const gint *codecs,
+                                                                  gsize ncodecs, GError **err);
 
 GType           spice_gl_scanout_get_type     (void) G_GNUC_CONST;
 void            spice_gl_scanout_free         (SpiceGlScanout *scanout);

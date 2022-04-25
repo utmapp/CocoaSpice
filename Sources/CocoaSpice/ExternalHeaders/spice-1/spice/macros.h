@@ -34,17 +34,9 @@
 #include <spice/types.h>
 
 #if    __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96)
-#define SPICE_GNUC_PURE __attribute__((__pure__))
 #define SPICE_GNUC_MALLOC __attribute__((__malloc__))
 #else
-#define SPICE_GNUC_PURE
 #define SPICE_GNUC_MALLOC
-#endif
-
-#if     __GNUC__ >= 4
-#define SPICE_GNUC_NULL_TERMINATED __attribute__((__sentinel__))
-#else
-#define SPICE_GNUC_NULL_TERMINATED
 #endif
 
 #ifndef __has_feature
@@ -62,20 +54,12 @@
 
 #if     __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
 #define SPICE_GNUC_PRINTF( format_idx, arg_idx ) __attribute__((__format__ (__printf__, format_idx, arg_idx)))
-#define SPICE_GNUC_SCANF( format_idx, arg_idx ) __attribute__((__format__ (__scanf__, format_idx, arg_idx)))
-#define SPICE_GNUC_FORMAT( arg_idx ) __attribute__((__format_arg__ (arg_idx)))
 #define SPICE_GNUC_NORETURN __attribute__((__noreturn__))
-#define SPICE_GNUC_CONST __attribute__((__const__))
 #define SPICE_GNUC_UNUSED __attribute__((__unused__))
-#define SPICE_GNUC_NO_INSTRUMENT __attribute__((__no_instrument_function__))
 #else   /* !__GNUC__ */
 #define SPICE_GNUC_PRINTF( format_idx, arg_idx )
-#define SPICE_GNUC_SCANF( format_idx, arg_idx )
-#define SPICE_GNUC_FORMAT( arg_idx )
 #define SPICE_GNUC_NORETURN
-#define SPICE_GNUC_CONST
 #define SPICE_GNUC_UNUSED
-#define SPICE_GNUC_NO_INSTRUMENT
 #endif  /* !__GNUC__ */
 
 #ifdef G_DEPRECATED
@@ -86,6 +70,14 @@
 #define SPICE_GNUC_DEPRECATED  __declspec(deprecated)
 #else
 #define SPICE_GNUC_DEPRECATED
+#endif
+
+#if ((defined(__GNUC__) && (__GNUC__ > 6 || (__GNUC__ == 6 && __GNUC_MINOR__ >= 1))) || \
+     (defined(__clang_major__) && (__clang_major__ > 3 || \
+      (__clang_major__ == 3 && __clang_minor__ >= 0))))
+#define SPICE_GNUC_DEPRECATED_ENUMERATOR SPICE_GNUC_DEPRECATED
+#else
+#define SPICE_GNUC_DEPRECATED_ENUMERATOR
 #endif
 
 #if     __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)

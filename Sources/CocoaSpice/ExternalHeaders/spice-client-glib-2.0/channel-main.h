@@ -1,4 +1,3 @@
-/* -*- Mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
    Copyright (C) 2010 Red Hat, Inc.
 
@@ -53,8 +52,8 @@ struct _SpiceMainChannel {
 /**
  * SpiceMainChannelClass:
  * @parent_class: Parent class.
- * @mouse_update: Signal class handler for the #SpiceMainChannel::mouse-update signal.
- * @agent_update: Signal class handler for the #SpiceMainChannel::agent-update signal.
+ * @mouse_update: Signal class handler for the #SpiceMainChannel::main-mouse-update signal.
+ * @agent_update: Signal class handler for the #SpiceMainChannel::main-agent-update signal.
  *
  * Class structure for #SpiceMainChannel.
  */
@@ -70,6 +69,9 @@ struct _SpiceMainChannelClass {
 };
 
 GType spice_main_channel_get_type(void);
+
+void spice_main_channel_update_display_mm(SpiceMainChannel *channel, int id,
+                                          int width_mm, int height_mm, gboolean update);
 
 void spice_main_channel_update_display(SpiceMainChannel *channel, int id, int x, int y, int width,
                                        int height, gboolean update);

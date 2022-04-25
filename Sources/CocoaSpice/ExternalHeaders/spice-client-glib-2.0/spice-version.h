@@ -1,4 +1,3 @@
-/* -*- Mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
   Copyright (C) 2014 Red Hat, Inc.
 
@@ -46,7 +45,7 @@
  * Spice-Gtk minor version component (e.g. 2 if version is 1.2.3)
  * Since: 0.24
  */
-#define SPICE_GTK_MINOR_VERSION              (36)
+#define SPICE_GTK_MINOR_VERSION              (40)
 
 /**
  * SPICE_GTK_MICRO_VERSION:
