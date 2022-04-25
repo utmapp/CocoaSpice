@@ -96,24 +96,34 @@ NS_ASSUME_NONNULL_BEGIN
 /// Reset key state by making sure all keys in pressed state are released
 - (void)releaseKeys;
 
-/// Sends a mouse movement event
+/// Sends a relative mouse movement event to the main monitor
 ///
-/// This sends either a relative movement or absolute movement depending on `serverModeCursor`.
-/// If `serverModeCursor` is true, then `point` is relative to the current position.
-/// If `serverModeCursor` is false, then `point` is an absolute position in the primary display.
+/// Must use `-requestMouseMode:` to set server mode to `true` before calling this.
 /// @param button Mask of mouse buttons pressed
-/// @param point Either a relative position or an absolute position (see above)
-- (void)sendMouseMotion:(CSInputButton)button point:(CGPoint)point;
+/// @param relativePoint Delta of previous mouse coordinates
+- (void)sendMouseMotion:(CSInputButton)button relativePoint:(CGPoint)relativePoint;
 
-/// Sends a mouse movement event
+/// Sends a relative mouse movement event
 ///
-/// This sends either a relative movement or absolute movement depending on `serverModeCursor`.
-/// If `serverModeCursor` is true, then `point` is relative to the current position.
-/// If `serverModeCursor` is false, then `point` is an absolute position in the specified monitor.
+/// Must use `-requestMouseMode:` to set server mode to `true` before calling this. Otherwise, the event is ignored.
 /// @param button Mask of mouse buttons pressed
-/// @param point Either a relative position or an absolute position (see above)
+/// @param relativePoint Delta of previous mouse coordinates
 /// @param monitorID Monitor where the mouse event is sent to
-- (void)sendMouseMotion:(CSInputButton)button point:(CGPoint)point forMonitorID:(NSInteger)monitorID;
+- (void)sendMouseMotion:(CSInputButton)button relativePoint:(CGPoint)relativePoint forMonitorID:(NSInteger)monitorID;
+
+/// Sends an absolute mouse movement event (if supported) to the main monitor
+///
+/// Must use `-requestMouseMode:` to set server mode to `false` before calling this. Otherwise, the event is ignored.
+/// @param button Mask of mouse buttons pressed
+/// @param absolutePoint Absolute position of mouse coordinates
+- (void)sendMousePosition:(CSInputButton)button absolutePoint:(CGPoint)absolutePoint;
+
+/// Sends an absolute mouse movement event (if supported)
+///
+/// @param button Mask of mouse buttons pressed
+/// @param absolutePoint Absolute position of mouse coordinates
+/// @param monitorID Monitor where the mouse event is sent to
+- (void)sendMousePosition:(CSInputButton)button absolutePoint:(CGPoint)absolutePoint forMonitorID:(NSInteger)monitorID;
 
 /// Sends a mouse scroll event
 /// @param type Scroll event type

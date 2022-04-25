@@ -203,7 +203,27 @@ static int cs_button_to_spice(CSInputButton button)
     return spice;
 }
 
-- (void)sendMouseMotion:(CSInputButton)button point:(CGPoint)point forMonitorID:(NSInteger)monitorID {
+- (void)sendMouseMotion:(CSInputButton)button relativePoint:(CGPoint)relativePoint forMonitorID:(NSInteger)monitorID {
+    if (!self.inputs)
+        return;
+    if (self.disableInputs)
+        return;
+    
+    [CSMain.sharedInstance asyncWith:^{
+        if (!self.serverModeCursor) {
+            SPICE_DEBUG("[CocoaSpice] %s:%d ignoring mouse motion event since we are in client mode", __FUNCTION__, __LINE__);
+        } else {
+            spice_inputs_channel_motion(self.inputs, relativePoint.x, relativePoint.y,
+                                        cs_button_mask_to_spice(button));
+        }
+    }];
+}
+
+- (void)sendMouseMotion:(CSInputButton)button relativePoint:(CGPoint)relativePoint {
+    [self sendMouseMotion:button relativePoint:relativePoint forMonitorID:0];
+}
+
+- (void)sendMousePosition:(CSInputButton)button absolutePoint:(CGPoint)absolutePoint forMonitorID:(NSInteger)monitorID {
     if (!self.inputs)
         return;
     if (self.disableInputs)
@@ -211,18 +231,16 @@ static int cs_button_to_spice(CSInputButton button)
     
     [CSMain.sharedInstance asyncWith:^{
         if (self.serverModeCursor) {
-            spice_inputs_channel_motion(self.inputs, point.x, point.y,
-                                        cs_button_mask_to_spice(button));
+            SPICE_DEBUG("[CocoaSpice] %s:%d ignoring mouse position event since we are in server mode", __FUNCTION__, __LINE__);
         } else {
-            spice_inputs_channel_position(self.inputs, point.x, point.y, (int)monitorID,
+            spice_inputs_channel_position(self.inputs, absolutePoint.x, absolutePoint.y, (int)monitorID,
                                           cs_button_mask_to_spice(button));
         }
     }];
 }
 
-// FIXME: remove this when multiple displays are implemented properly
-- (void)sendMouseMotion:(CSInputButton)button point:(CGPoint)point {
-    [self sendMouseMotion:button point:point forMonitorID:0];
+- (void)sendMousePosition:(CSInputButton)button absolutePoint:(CGPoint)absolutePoint {
+    [self sendMousePosition:button absolutePoint:absolutePoint forMonitorID:0];
 }
 
 - (void)sendMouseScroll:(CSInputScroll)type button:(CSInputButton)button dy:(CGFloat)dy {
