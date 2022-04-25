@@ -171,6 +171,14 @@ static int cs_button_mask_to_spice(CSInputButton button)
         spice |= SPICE_MOUSE_BUTTON_MASK_MIDDLE;
     if (button & kCSInputButtonRight)
         spice |= SPICE_MOUSE_BUTTON_MASK_RIGHT;
+    if (button & kCSInputButtonUp)
+        spice |= SPICE_MOUSE_BUTTON_MASK_UP;
+    if (button & kCSInputButtonDown)
+        spice |= SPICE_MOUSE_BUTTON_MASK_DOWN;
+    if (button & kCSInputButtonSide)
+        spice |= SPICE_MOUSE_BUTTON_MASK_SIDE;
+    if (button & kCSInputButtonExtra)
+        spice |= SPICE_MOUSE_BUTTON_MASK_EXTRA;
     return spice;
 }
 
@@ -184,6 +192,14 @@ static int cs_button_to_spice(CSInputButton button)
         spice |= SPICE_MOUSE_BUTTON_MIDDLE;
     if (button & kCSInputButtonRight)
         spice |= SPICE_MOUSE_BUTTON_RIGHT;
+    if (button & kCSInputButtonUp)
+        spice |= SPICE_MOUSE_BUTTON_UP;
+    if (button & kCSInputButtonDown)
+        spice |= SPICE_MOUSE_BUTTON_DOWN;
+    if (button & kCSInputButtonSide)
+        spice |= SPICE_MOUSE_BUTTON_SIDE;
+    if (button & kCSInputButtonExtra)
+        spice |= SPICE_MOUSE_BUTTON_EXTRA;
     return spice;
 }
 

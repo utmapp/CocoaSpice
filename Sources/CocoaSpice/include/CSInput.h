@@ -38,7 +38,19 @@ typedef NS_OPTIONS(NSUInteger, CSInputButton) {
     kCSInputButtonMiddle = (1 << 1),
     
     /// Right mouse button
-    kCSInputButtonRight = (1 << 2)
+    kCSInputButtonRight = (1 << 2),
+    
+    /// Up mouse button
+    kCSInputButtonUp = (1 << 3),
+    
+    /// Down mouse button
+    kCSInputButtonDown = (1 << 4),
+    
+    /// Side mouse button
+    kCSInputButtonSide = (1 << 5),
+    
+    /// Extra mouse button
+    kCSInputButtonExtra = (1 << 6),
 };
 
 /// Sends a mouse scroll
