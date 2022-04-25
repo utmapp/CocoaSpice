@@ -26,6 +26,24 @@ NS_ASSUME_NONNULL_BEGIN
 /// A user-readable description of the device
 @property (nonatomic, nullable, readonly) NSString *name;
 
+/// USB manufacturer if available
+@property (nonatomic, nullable, readonly) NSString *usbManufacturerName;
+
+/// USB product if available
+@property (nonatomic, nullable, readonly) NSString *usbProductName;
+
+/// USB vendor ID
+@property (nonatomic, readonly) NSInteger usbVendorId;
+
+/// USB product ID
+@property (nonatomic, readonly) NSInteger usbProductId;
+
+/// USB bus number
+@property (nonatomic, readonly) NSInteger usbBusNumber;
+
+/// USB port number
+@property (nonatomic, readonly) NSInteger usbPortNumber;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 /// Compare two USB devices

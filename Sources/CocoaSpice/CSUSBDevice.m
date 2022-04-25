@@ -27,6 +27,11 @@
 
 @implementation CSUSBDevice
 
+@synthesize usbManufacturerName = _usbManufacturerName;
+@synthesize usbProductName = _usbProductName;
+@synthesize usbVendorId = _usbVendorId;
+@synthesize usbProductId = _usbProductId;
+
 + (instancetype)usbDeviceWithDevice:(SpiceUsbDevice *)device {
     return [[CSUSBDevice alloc] initWithDevice:device];
 }
@@ -42,29 +47,75 @@
     g_boxed_free(spice_usb_device_get_type(), self.device);
 }
 
-- (NSString *)name {
+- (void)readDescriptors {
     libusb_device *dev = (libusb_device *)spice_usb_device_get_libusb_device(self.device);
     struct libusb_device_descriptor ddesc;
     libusb_device_handle *handle;
-    if (dev == NULL) {
-        return nil;
-    }
     if (libusb_get_device_descriptor(dev, &ddesc) != 0) {
-        return nil;
+        return;
     }
+    _usbVendorId = ddesc.idVendor;
+    _usbProductId = ddesc.idProduct;
     if (libusb_open(dev, &handle) == 0) {
         unsigned char name[64] = { 0 };
-        int bus = libusb_get_bus_number(dev);
-        int port = libusb_get_port_number(dev);
         libusb_get_string_descriptor_ascii(handle,
                                            ddesc.iProduct,
                                            name, sizeof(name));
-        libusb_close(handle);
-        if (name[0] == '\0') {
-            return nil;
-        } else {
-            return [NSString stringWithFormat:@"%s (%d:%d)", (const char *)name, bus, port];
+        if (name[0] != '\0') {
+            _usbProductName = [NSString stringWithCString:(char *)name encoding:NSASCIIStringEncoding];
         }
+        name[0] = '\0';
+        libusb_get_string_descriptor_ascii(handle,
+                                           ddesc.iManufacturer,
+                                           name, sizeof(name));
+        if (name[0] != '\0') {
+            _usbManufacturerName = [NSString stringWithCString:(char *)name encoding:NSASCIIStringEncoding];
+        }
+        libusb_close(handle);
+    }
+}
+
+- (NSString *)usbManufacturerName {
+    if (!_usbManufacturerName) {
+        [self readDescriptors];
+    }
+    return _usbManufacturerName;
+}
+
+- (NSString *)usbProductName {
+    if (!_usbProductName) {
+        [self readDescriptors];
+    }
+    return _usbProductName;
+}
+
+- (NSInteger)usbVendorId {
+    if (!_usbVendorId) {
+        [self readDescriptors];
+    }
+    return _usbVendorId;
+}
+
+- (NSInteger)usbProductId {
+    if (!_usbProductId) {
+        [self readDescriptors];
+    }
+    return _usbProductId;
+}
+
+- (NSInteger)usbBusNumber {
+    libusb_device *dev = (libusb_device *)spice_usb_device_get_libusb_device(self.device);
+    return libusb_get_bus_number(dev);
+}
+
+- (NSInteger)usbPortNumber {
+    libusb_device *dev = (libusb_device *)spice_usb_device_get_libusb_device(self.device);
+    return libusb_get_port_number(dev);
+}
+
+- (NSString *)name {
+    if (self.usbProductName) {
+        return [NSString stringWithFormat:@"%@ (%ld:%ld)", self.usbProductName, self.usbBusNumber, self.usbPortNumber];
     } else {
         return nil;
     }
