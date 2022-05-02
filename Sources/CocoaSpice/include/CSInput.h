@@ -65,6 +65,21 @@ typedef NS_ENUM(NSInteger, CSInputScroll) {
     kCSInputScrollSmooth
 };
 
+/// Sends a key lock
+typedef NS_OPTIONS(NSUInteger, CSInputKeyLock) {
+    /// No lock is set
+    kCSInputKeyLockNone = 0,
+    
+    /// Scroll lock is set
+    kCSInputKeyLockScroll = (1 << 0),
+    
+    /// Num lock is set
+    kCSInputKeyLockNum = (1 << 1),
+    
+    /// Caps lock is set
+    kCSInputKeyLockCaps = (1 << 2),
+};
+
 NS_ASSUME_NONNULL_BEGIN
 
 /// Handles keyboard and mouse input
@@ -76,6 +91,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// If true, all input handling are ignored
 @property (nonatomic, assign) BOOL disableInputs;
+
+/// Status of the key locks
+@property (nonatomic) CSInputKeyLock keyLock;
 
 /// Sends a single keyboard event
 ///

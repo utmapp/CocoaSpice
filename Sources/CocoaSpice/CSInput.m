@@ -159,6 +159,41 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     }
 }
 
+- (CSInputKeyLock)keyLock {
+    guint32 locks;
+    CSInputKeyLock keyLock = 0;
+    
+    g_object_get(self.inputs, "key-modifiers", &locks, NULL);
+    if (locks & SPICE_INPUTS_NUM_LOCK) {
+        keyLock |= kCSInputKeyLockNum;
+    }
+    if (locks & SPICE_INPUTS_CAPS_LOCK) {
+        keyLock |= kCSInputKeyLockCaps;
+    }
+    if (locks & SPICE_INPUTS_SCROLL_LOCK) {
+        keyLock |= kCSInputKeyLockScroll;
+    }
+    return keyLock;
+}
+
+- (void)setKeyLock:(CSInputKeyLock)keyLock {
+    guint locks = 0;
+    
+    if (keyLock & kCSInputKeyLockNum) {
+        locks |= SPICE_INPUTS_NUM_LOCK;
+    }
+    if (keyLock & kCSInputKeyLockCaps) {
+        locks |= SPICE_INPUTS_CAPS_LOCK;
+    }
+    if (keyLock & kCSInputKeyLockScroll) {
+        locks |= SPICE_INPUTS_SCROLL_LOCK;
+    }
+    
+    [CSMain.sharedInstance asyncWith:^{
+        spice_inputs_channel_set_key_locks(self.inputs, locks);
+    }];
+}
+
 #pragma mark - Mouse handling
 
 static int cs_button_mask_to_spice(CSInputButton button)
