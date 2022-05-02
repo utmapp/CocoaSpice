@@ -524,8 +524,11 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     if (self.display) {
         cs_channel_destroy(self.session, SPICE_CHANNEL(self.display), (__bridge void *)self);
     }
-    if (_cursor) {
-        cs_channel_destroy(self.session, SPICE_CHANNEL(_cursor), (__bridge void *)self);
+    if (self.cursor) {
+        cs_channel_destroy(self.session, SPICE_CHANNEL(self.cursor), (__bridge void *)self);
+    }
+    if (self.main) {
+        cs_channel_destroy(self.session, SPICE_CHANNEL(self.main), (__bridge void *)self);
     }
     SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
     g_signal_handlers_disconnect_by_func(self.session, G_CALLBACK(cs_channel_new), GLIB_OBJC_RELEASE(self));
@@ -656,27 +659,29 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
 }
 
 - (void)requestResolution:(CGRect)bounds {
-    if (!self.main) {
+    SpiceMainChannel *main = self.main;
+    if (!main) {
         SPICE_DEBUG("[CocoaSpice] ignoring change resolution because main channel not found");
         return;
     }
     [CSMain.sharedInstance asyncWith:^{
-        spice_main_channel_update_display_enabled(self.main, (int)self.monitorID, TRUE, FALSE);
-        spice_main_channel_update_display(self.main,
+        spice_main_channel_update_display_enabled(main, (int)self.monitorID, TRUE, FALSE);
+        spice_main_channel_update_display(main,
                                           (int)self.monitorID,
                                           bounds.origin.x,
                                           bounds.origin.y,
                                           bounds.size.width,
                                           bounds.size.height,
                                           TRUE);
-        spice_main_channel_send_monitor_config(self.main);
+        spice_main_channel_send_monitor_config(main);
     }];
 }
 
 - (void)rendererFrameHasRendered {
-    if (self.isGLEnabled && !self.hasGLDrawAck) {
+    SpiceDisplayChannel *display = self.display;
+    if (display && self.isGLEnabled && !self.hasGLDrawAck) {
         [CSMain.sharedInstance asyncWith:^{
-            spice_display_channel_gl_draw_done(self.display);
+            spice_display_channel_gl_draw_done(display);
         }];
         self.hasGLDrawAck = YES;
     }
