@@ -439,7 +439,7 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
 }
 
 - (CSScreenshot *)screenshot {
-    CGImageRef img;
+    CGImageRef img = NULL;
     CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
     
     dispatch_semaphore_wait(self.canvasLock, DISPATCH_TIME_FOREVER);
@@ -448,12 +448,12 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
         img = CGImageCreate(self.canvasArea.size.width, self.canvasArea.size.height, 8, 32, self.canvasStride, colorSpaceRef, kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst, dataProviderRef, NULL, NO, kCGRenderingIntentDefault);
         CGDataProviderRelease(dataProviderRef);
     } else if (self.isGLEnabled && self.glTexture) {
+#if 0 // FIXME: this code seems to cause crashes
         CIImage *ciimage = [[CIImage alloc] initWithMTLTexture:self.glTexture options:nil];
         CIImage *flipped = [ciimage imageByApplyingOrientation:kCGImagePropertyOrientationDownMirrored];
         CIContext *cictx = [CIContext context];
         img = [cictx createCGImage:flipped fromRect:flipped.extent];
-    } else {
-        img = NULL;
+#endif
     }
     dispatch_semaphore_signal(self.canvasLock);
     
