@@ -14,25 +14,26 @@
 // limitations under the License.
 //
 
-#ifndef CocoaSpice_h
-#define CocoaSpice_h
+#import "CSPort.h"
 
-#include "CSConnection.h"
-#include "CSConnectionDelegate.h"
-#include "CSDisplayMetal.h"
-#include "CSInput.h"
-#include "CSMain.h"
-#include "CSPasteboardDelegate.h"
-#include "CSPort.h"
-#include "CSPortDelegate.h"
-#include "CSScreenshot.h"
-#include "CSSession.h"
-#include "CSSession+Sharing.h"
-#include "CSUSBDevice.h"
-#include "CSUSBManager.h"
-#include "CSUSBManagerDelegate.h"
+typedef struct _SpicePortChannel SpicePortChannel;
 
-#define GLIB_OBJC_RETAIN(x) (__bridge_retained void *)(x)
-#define GLIB_OBJC_RELEASE(x) (__bridge void *)(__bridge_transfer NSObject *)(__bridge void *)(x)
+@class CSConnection;
 
-#endif /* CocoaSpice_h */
+NS_ASSUME_NONNULL_BEGIN
+
+@interface CSPort ()
+
+/// SPICE channel
+@property (nonatomic, readonly) SpicePortChannel *channel;
+
+/// Reference to CSConnection in order to make delegate callbacks
+@property (nonatomic, weak) CSConnection *connection;
+
+/// Create a new CSPort from a SpicePortChannel
+/// @param channel SPICE channel
+- (instancetype)initWithChannel:(SpicePortChannel *)channel NS_DESIGNATED_INITIALIZER;
+
+@end
+
+NS_ASSUME_NONNULL_END

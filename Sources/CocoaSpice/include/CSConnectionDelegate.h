@@ -19,6 +19,7 @@
 @class CSConnection;
 @class CSDisplayMetal;
 @class CSInput;
+@class CSPort;
 @class CSSession;
 
 /// Supported feature flags used in `-spiceAgentConnected:supportingFeatures:`
@@ -66,6 +67,16 @@ NS_ASSUME_NONNULL_BEGIN
 /// Client running SPICE guest tools disconnected
 /// @param connection The connection
 - (void)spiceAgentDisconnected:(CSConnection *)connection;
+
+/// Client opened a new port channel
+/// @param connection The connection
+/// @param port Port channel that is created.
+- (void)spiceForwardedPortOpened:(CSConnection *)connection port:(CSPort *)port;
+
+/// Client closed a port channel
+/// @param connection The connection
+/// @param port Port channel that is destroyed.
+- (void)spiceForwardedPortClosed:(CSConnection *)connection port:(CSPort *)port;
 
 @end
 

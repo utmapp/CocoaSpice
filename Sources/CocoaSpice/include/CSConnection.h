@@ -18,6 +18,7 @@
 #import "CSConnectionDelegate.h"
 
 @class CSDisplayMetal;
+@class CSPort;
 @class CSUSBManager;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -35,6 +36,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Send keyboard and mouse input to the client
 @property (nonatomic, readonly) CSInput *input;
+
+/// A list of all connected port channels
+@property (nonatomic, readonly) NSArray<CSPort *> *forwardedPorts;
 
 /// USB forwarding options
 @property (nonatomic, readonly) CSUSBManager *usbManager;
