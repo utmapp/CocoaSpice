@@ -31,6 +31,24 @@ typedef NS_OPTIONS(NSInteger, CSConnectionAgentFeature) {
     kCSConnectionAgentFeatureMonitorsConfig
 };
 
+/// Supported error codes
+typedef NS_ENUM(NSInteger, CSConnectionError) {
+    /// No error
+    kCSConnectionErrorNone,
+    
+    /// Connection error
+    kCSConnectionErrorConnect,
+    
+    /// Authentication error
+    kCSConnectionErrorAuthentication,
+    
+    /// I/O error
+    kCSConnectionErrorIO,
+    
+    /// Other error
+    kCSConnectionErrorUnknown,
+};
+
 NS_ASSUME_NONNULL_BEGIN
 
 /// Implement this protocol to handle `CSConnection` events
@@ -47,7 +65,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Client was not able to connect due to an error
 /// @param connection The connection
 /// @param msg Error message (in English)
-- (void)spiceError:(CSConnection *)connection err:(nullable NSString *)msg;
+- (void)spiceError:(CSConnection *)connection code:(CSConnectionError)code message:(nullable NSString *)message;
 
 /// Client created a new display
 /// @param connection The connection
