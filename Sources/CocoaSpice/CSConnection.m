@@ -69,7 +69,7 @@ static void cs_main_channel_event(SpiceChannel *channel, SpiceChannelEvent event
         case SPICE_CHANNEL_ERROR_CONNECT:
         case SPICE_CHANNEL_ERROR_AUTH:
             error = spice_channel_get_error(channel);
-            if (error) {
+            if (error && event != SPICE_CHANNEL_ERROR_CONNECT) {
                 g_message("channel error: %s", error->message);
             }
             switch (event) {
