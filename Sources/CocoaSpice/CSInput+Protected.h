@@ -16,18 +16,24 @@
 
 #import "CSInput.h"
 
-typedef struct _SpiceSession SpiceSession;
+typedef struct _SpiceInputsChannel SpiceInputsChannel;
+typedef struct _SpiceMainChannel SpiceMainChannel;
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface CSInput ()
 
-/// SPICE GTK session
-@property (nonatomic, readonly, nullable) SpiceSession *session;
+/// SPICE inputs channel
+@property (nonatomic, readonly) SpiceInputsChannel *channel;
 
-/// Create a new input for a SPICE session
-/// @param session SPICE session handling input
-- (instancetype)initWithSession:(SpiceSession *)session NS_DESIGNATED_INITIALIZER;
+/// SPICE main channel
+///
+/// This must be set before server/client mode switching can occur
+@property (nonatomic, readwrite, nullable) SpiceMainChannel *main;
+
+/// Create a new input for a SPICE inputs channel
+/// @param channel SPICE inputs channel
+- (instancetype)initWithChannel:(SpiceInputsChannel *)channel NS_DESIGNATED_INITIALIZER;
 
 @end
 

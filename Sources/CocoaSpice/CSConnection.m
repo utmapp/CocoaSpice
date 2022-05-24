@@ -31,7 +31,7 @@
 
 @property (nonatomic, readwrite) CSSession *session;
 @property (nonatomic, readwrite) CSUSBManager *usbManager;
-@property (nonatomic, readwrite) CSInput *input;
+@property (nonatomic, readwrite) NSMutableArray<CSInput *> *mutableInputs;
 @property (nonatomic, readwrite) SpiceSession *spiceSession;
 @property (nonatomic, readwrite) SpiceMainChannel *spiceMain;
 @property (nonatomic, readwrite) SpiceAudio *spiceAudio;
@@ -233,6 +233,15 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
         spice_channel_connect(channel);
     }
     
+    if (SPICE_IS_INPUTS_CHANNEL(channel)) {
+        SPICE_DEBUG("new inputs channel");
+        CSInput *input = [[CSInput alloc] initWithChannel:(SpiceInputsChannel *)channel];
+        input.main = self.spiceMain;
+        [self.mutableInputs addObject:input];
+        [self.delegate spiceInputAvailable:self input:input];
+        spice_channel_connect(channel);
+    }
+    
     if (SPICE_IS_PLAYBACK_CHANNEL(channel)) {
         SPICE_DEBUG("new audio channel");
         if (self.audioEnabled) {
@@ -274,6 +283,17 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
             [self.delegate spiceDisplayDestroyed:self display:monitor];
         }
         self.monitors = [NSArray<CSDisplayMetal *> array];
+    }
+    
+    if (SPICE_IS_INPUTS_CHANNEL(channel)) {
+        SPICE_DEBUG("zap inputs channel");
+        for (NSInteger i = self.mutableInputs.count-1; i >= 0; i--) {
+           CSInput* input = self.mutableInputs[i];
+            if ((SpiceChannel *)input.channel == channel) {
+                [self.mutableInputs removeObjectAtIndex:i];
+            }
+            [self.delegate spiceInputUnavailable:self input:input];
+        }
     }
     
     if (SPICE_IS_PLAYBACK_CHANNEL(channel)) {
@@ -327,6 +347,20 @@ static void cs_connection_destroy(SpiceSession *session,
     return self.mutableForwardedPorts;
 }
 
+- (NSArray<CSInput *> *)inputs {
+    return self.mutableInputs;
+}
+
+- (void)setSpiceMain:(SpiceMainChannel *)spiceMain {
+    if (_spiceMain) {
+        g_object_unref(_spiceMain);
+    }
+    _spiceMain = spiceMain ? g_object_ref(spiceMain) : NULL;
+    for (CSInput *input in self.inputs) {
+        input.main = spiceMain;
+    }
+}
+
 - (void)dealloc {
     SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
     g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_channel_new), GLIB_OBJC_RELEASE(self));
@@ -350,10 +384,10 @@ static void cs_connection_destroy(SpiceSession *session,
     g_assert(manager != NULL);
     self.usbManager = [[CSUSBManager alloc] initWithUsbDeviceManager:manager];
 #endif
-    self.input = [[CSInput alloc] initWithSession:self.spiceSession];
     self.session = [[CSSession alloc] initWithSession:self.spiceSession];
     self.monitors = [NSArray<CSDisplayMetal *> array];
     self.mutableForwardedPorts = [NSMutableArray<CSPort *> array];
+    self.mutableInputs = [NSMutableArray<CSInput *> array];
 }
 
 - (instancetype)initWithHost:(NSString *)host port:(NSString *)port {

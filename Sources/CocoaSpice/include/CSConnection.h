@@ -35,7 +35,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) CSSession *session;
 
 /// Send keyboard and mouse input to the client
-@property (nonatomic, readonly) CSInput *input;
+@property (nonatomic, readonly) NSArray<CSInput *> *inputs;
 
 /// A list of all connected port channels
 @property (nonatomic, readonly) NSArray<CSPort *> *forwardedPorts;

@@ -62,6 +62,16 @@ NS_ASSUME_NONNULL_BEGIN
 /// @param connection The connection
 - (void)spiceDisconnected:(CSConnection *)connection;
 
+/// Inputs channel connected
+/// @param connection The connection
+/// @param input Input channel
+- (void)spiceInputAvailable:(CSConnection *)connection input:(CSInput *)input;
+
+/// Inputs channel disconnected
+/// @param connection The connection
+/// @param input Input channel that will be unavailable
+- (void)spiceInputUnavailable:(CSConnection *)connection input:(CSInput *)input;
+
 /// Client was not able to connect due to an error
 /// @param connection The connection
 /// @param msg Error message (in English)
