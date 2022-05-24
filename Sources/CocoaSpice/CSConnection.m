@@ -15,6 +15,7 @@
 //
 
 #import "CocoaSpice.h"
+#import "CSChannel+Protected.h"
 #import "CSDisplayMetal+Protected.h"
 #import "CSInput+Protected.h"
 #import "CSSession+Protected.h"
@@ -31,12 +32,11 @@
 
 @property (nonatomic, readwrite) CSSession *session;
 @property (nonatomic, readwrite) CSUSBManager *usbManager;
-@property (nonatomic, readwrite) NSMutableArray<CSInput *> *mutableInputs;
+@property (nonatomic, readwrite) NSMutableArray<CSChannel *> *mutableChannels;
 @property (nonatomic, readwrite) SpiceSession *spiceSession;
 @property (nonatomic, readwrite) SpiceMainChannel *spiceMain;
 @property (nonatomic, readwrite) SpiceAudio *spiceAudio;
 @property (nonatomic, readwrite) NSArray<CSDisplayMetal *> *monitors;
-@property (nonatomic, readwrite) NSMutableArray<CSPort *> *mutableForwardedPorts;
 
 @end
 
@@ -166,32 +166,16 @@ static void cs_main_agent_update(SpiceChannel *main, gpointer data)
     }
 }
 
-static void cs_port_channel_create(SpiceChannel *channel, CSConnection *self)
-{
-    CSPort *port = [[CSPort alloc] initWithChannel:(SpicePortChannel *)channel];
-    port.connection = self;
-    [self.mutableForwardedPorts addObject:port];
-}
-
-static void cs_port_channel_cleanup(SpiceChannel *channel, CSConnection *self)
-{
-    for (NSInteger i = self.mutableForwardedPorts.count-1; i >= 0; i--) {
-       CSPort* port = self.mutableForwardedPorts[i];
-       if ((SpiceChannel *)port.channel == channel) {
-           [self.mutableForwardedPorts removeObjectAtIndex:i];
-       }
-    }
-}
-
 static void cs_port_opened(SpiceChannel *channel, GParamSpec *pspec,
                            gpointer user)
 {
     CSConnection *self = (__bridge CSConnection *)user;
     CSPort *port = nil;
     
-    for (CSPort *candidate in self.mutableForwardedPorts) {
-        if ((SpiceChannel *)candidate.channel == channel) {
-            port = candidate;
+    for (CSPort *candidate in self.channels) {
+        if (candidate.spiceChannel == channel) {
+            assert([candidate isKindOfClass:CSPort.class]);
+            port = (CSPort *)candidate;
             break;
         }
     }
@@ -235,9 +219,9 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
     
     if (SPICE_IS_INPUTS_CHANNEL(channel)) {
         SPICE_DEBUG("new inputs channel");
-        CSInput *input = [[CSInput alloc] initWithChannel:(SpiceInputsChannel *)channel];
-        input.main = self.spiceMain;
-        [self.mutableInputs addObject:input];
+        CSInput *input = [[CSInput alloc] initWithChannel:SPICE_INPUTS_CHANNEL(channel)];
+        input.spiceMain = self.spiceMain;
+        [self.mutableChannels addObject:input];
         [self.delegate spiceInputAvailable:self input:input];
         spice_channel_connect(channel);
     }
@@ -254,7 +238,9 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
 
     if (SPICE_IS_PORT_CHANNEL(channel)) {
         SPICE_DEBUG("new port channel");
-        cs_port_channel_create(channel, self);
+        CSPort *port = [[CSPort alloc] initWithChannel:SPICE_PORT_CHANNEL(channel)];
+        port.connection = self;
+        [self.mutableChannels addObject:port];
         g_signal_connect(channel, "notify::port-opened",
                          G_CALLBACK(cs_port_opened), GLIB_OBJC_RETAIN(self));
         spice_channel_connect(channel);
@@ -287,12 +273,10 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     
     if (SPICE_IS_INPUTS_CHANNEL(channel)) {
         SPICE_DEBUG("zap inputs channel");
-        for (NSInteger i = self.mutableInputs.count-1; i >= 0; i--) {
-           CSInput* input = self.mutableInputs[i];
-            if ((SpiceChannel *)input.channel == channel) {
-                [self.mutableInputs removeObjectAtIndex:i];
+        for (CSChannel *input in self.channels) {
+            if (input.spiceChannel == channel) {
+                [self.delegate spiceInputUnavailable:self input:(CSInput *)input];
             }
-            [self.delegate spiceInputUnavailable:self input:input];
         }
     }
     
@@ -303,7 +287,13 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     
     if (SPICE_IS_PORT_CHANNEL(channel)) {
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_port_opened), GLIB_OBJC_RELEASE(self));
-        cs_port_channel_cleanup(channel, self);
+    }
+    
+    for (NSInteger i = self.mutableChannels.count-1; i >= 0; i--) {
+        CSChannel* wrap = self.mutableChannels[i];
+        if (wrap.spiceChannel == channel) {
+            [self.mutableChannels removeObjectAtIndex:i];
+        }
     }
 }
 
@@ -343,12 +333,8 @@ static void cs_connection_destroy(SpiceSession *session,
     _unixSocketURL = unixSocketURL;
 }
 
-- (NSArray<CSPort *> *)forwardedPorts {
-    return self.mutableForwardedPorts;
-}
-
-- (NSArray<CSInput *> *)inputs {
-    return self.mutableInputs;
+- (NSArray<CSChannel *> *)channels {
+    return self.mutableChannels;
 }
 
 - (void)setSpiceMain:(SpiceMainChannel *)spiceMain {
@@ -356,8 +342,8 @@ static void cs_connection_destroy(SpiceSession *session,
         g_object_unref(_spiceMain);
     }
     _spiceMain = spiceMain ? g_object_ref(spiceMain) : NULL;
-    for (CSInput *input in self.inputs) {
-        input.main = spiceMain;
+    for (CSChannel *channel in self.channels) {
+        channel.spiceMain = spiceMain;
     }
 }
 
@@ -386,8 +372,7 @@ static void cs_connection_destroy(SpiceSession *session,
 #endif
     self.session = [[CSSession alloc] initWithSession:self.spiceSession];
     self.monitors = [NSArray<CSDisplayMetal *> array];
-    self.mutableForwardedPorts = [NSMutableArray<CSPort *> array];
-    self.mutableInputs = [NSMutableArray<CSInput *> array];
+    self.mutableChannels = [NSMutableArray<CSChannel *> array];
 }
 
 - (instancetype)initWithHost:(NSString *)host port:(NSString *)port {

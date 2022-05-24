@@ -16,9 +16,9 @@
 
 #import <Foundation/Foundation.h>
 #import "CSConnectionDelegate.h"
+#import "CSChannel.h"
 
 @class CSDisplayMetal;
-@class CSPort;
 @class CSUSBManager;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -34,11 +34,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// Session options including clipboard settings. Always non-null even when not connected.
 @property (nonatomic, readonly) CSSession *session;
 
-/// Send keyboard and mouse input to the client
-@property (nonatomic, readonly) NSArray<CSInput *> *inputs;
-
-/// A list of all connected port channels
-@property (nonatomic, readonly) NSArray<CSPort *> *forwardedPorts;
+/// Contains all connected channels that CocoaSpice can handle
+@property (nonatomic, readonly) NSArray<CSChannel *> *channels;
 
 /// USB forwarding options
 @property (nonatomic, readonly) CSUSBManager *usbManager;

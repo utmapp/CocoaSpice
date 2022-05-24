@@ -86,7 +86,7 @@ static void cs_port_write_cb(GObject *source_object,
 #pragma mark - Initializers
 
 - (instancetype)initWithChannel:(SpicePortChannel *)channel {
-    if (self = [super init]) {
+    if (self = [self init]) {
         self.cacheBuffer = [NSMutableData data];
         self.channel = g_object_ref(channel);
         g_signal_connect(channel, "notify::port-opened",
@@ -107,6 +107,14 @@ static void cs_port_write_cb(GObject *source_object,
 }
 
 #pragma mark - Implementation
+
+- (SpiceChannel *)spiceChannel {
+    return SPICE_CHANNEL(self.channel);
+}
+
+- (SpiceMainChannel *)spiceMain {
+    return NULL; // not used
+}
 
 - (NSString *)name {
     NSString *nsname = nil;

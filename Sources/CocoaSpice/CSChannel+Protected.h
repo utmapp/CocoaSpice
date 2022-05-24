@@ -14,26 +14,20 @@
 // limitations under the License.
 //
 
-#import "CSInput.h"
+#import "CSChannel.h"
 
-typedef struct _SpiceInputsChannel SpiceInputsChannel;
+typedef struct _SpiceChannel SpiceChannel;
 typedef struct _SpiceMainChannel SpiceMainChannel;
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface CSInput ()
+@interface CSChannel ()
 
-/// SPICE inputs channel
-@property (nonatomic, readonly) SpiceInputsChannel *channel;
+/// SPICE channel
+@property (nonatomic, readonly) SpiceChannel *spiceChannel;
 
 /// SPICE main channel
-///
-/// This must be set before server/client mode switching can occur
-@property (nonatomic, readwrite, nullable) SpiceMainChannel *spiceMain;
-
-/// Create a new input for a SPICE inputs channel
-/// @param channel SPICE inputs channel
-- (instancetype)initWithChannel:(SpiceInputsChannel *)channel NS_DESIGNATED_INITIALIZER;
+@property (nonatomic, nullable) SpiceMainChannel *spiceMain;
 
 @end
 

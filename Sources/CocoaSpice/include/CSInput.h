@@ -15,6 +15,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "CSChannel.h"
 @import CoreGraphics;
 
 /// Sends a key press or release
@@ -83,7 +84,7 @@ typedef NS_OPTIONS(NSUInteger, CSInputKeyLock) {
 NS_ASSUME_NONNULL_BEGIN
 
 /// Handles keyboard and mouse input
-@interface CSInput : NSObject
+@interface CSInput : CSChannel
 
 /// If true, mouse events are handled as relative. Otherwise, they are handled as absolute positions.
 /// Observers are not supported on this property.

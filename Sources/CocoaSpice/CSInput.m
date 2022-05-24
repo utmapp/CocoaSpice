@@ -15,6 +15,7 @@
 //
 
 #import "CSInput.h"
+#import "CSChannel+Protected.h"
 #import "CocoaSpice.h"
 #import <glib.h>
 #import <spice-client.h>
@@ -22,7 +23,6 @@
 
 @interface CSInput ()
 
-@property (nonatomic, readwrite, nullable) SpiceMainChannel *main;
 @property (nonatomic, readwrite) SpiceInputsChannel *channel;
 
 @end
@@ -35,21 +35,18 @@
 
 #pragma mark - Properties
 
+- (SpiceChannel *)spiceChannel {
+    return SPICE_CHANNEL(self.channel);
+}
+
 - (BOOL)serverModeCursor {
     enum SpiceMouseMode mouse_mode;
     
-    if (!self.main) {
+    if (!self.spiceMain) {
         return NO;
     }
-    g_object_get(self.main, "mouse-mode", &mouse_mode, NULL);
+    g_object_get(self.spiceMain, "mouse-mode", &mouse_mode, NULL);
     return (mouse_mode == SPICE_MOUSE_MODE_SERVER);
-}
-
-- (void)setMain:(SpiceMainChannel *)main {
-    if (_main) {
-        g_object_unref(_main);
-    }
-    _main = main ? g_object_ref(main) : NULL;
 }
 
 #pragma mark - Key handling
@@ -338,15 +335,15 @@ static int cs_button_to_spice(CSInputButton button)
 }
 
 - (void)requestMouseMode:(BOOL)server {
-    SpiceMainChannel *main = self.main;
+    SpiceMainChannel *main = self.spiceMain;
     if (!main) {
         return;
     }
     [CSMain.sharedInstance asyncWith:^{
         if (server) {
-            spice_main_channel_request_mouse_mode(self.main, SPICE_MOUSE_MODE_SERVER);
+            spice_main_channel_request_mouse_mode(main, SPICE_MOUSE_MODE_SERVER);
         } else {
-            spice_main_channel_request_mouse_mode(self.main, SPICE_MOUSE_MODE_CLIENT);
+            spice_main_channel_request_mouse_mode(main, SPICE_MOUSE_MODE_CLIENT);
         }
     }];
 }
@@ -354,7 +351,7 @@ static int cs_button_to_spice(CSInputButton button)
 #pragma mark - Initializers
 
 - (instancetype)initWithChannel:(SpiceInputsChannel *)channel {
-    self = [super init];
+    self = [self init];
     if (self) {
         self.channel = g_object_ref(channel);
     }

@@ -15,31 +15,11 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "CSChannel.h"
-#import "CSPortDelegate.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// Handles port forwarding through SPICE
-///
-/// In order to handle races in channel connection and application handling,
-/// a cache buffer of 4096 bytes will store any incoming data before `delegate` is set.
-@interface CSPort : CSChannel
-
-/// Delegate to handle port events
-///
-/// When set, any cached data will be sent via `- port:didRecieveData:`
-@property (nonatomic, weak) id<CSPortDelegate> delegate;
-
-/// Name of the port
-@property (nonatomic, nullable, readonly) NSString *name;
-
-/// Port is open at the other end
-@property (nonatomic, readonly) BOOL isOpen;
-
-/// Write data to port
-/// @param data Data to write
-- (void)writeData:(NSData *)data;
+/// Object that wraps a SpiceChannel
+@interface CSChannel : NSObject
 
 - (instancetype)init NS_UNAVAILABLE;
 
