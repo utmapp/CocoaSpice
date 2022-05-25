@@ -187,7 +187,7 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
         // Render the screen first
         
         bool hasAlpha = NO;
-        bool isInverted = NO;
+        bool isInverted = source.isInverted;
         matrix_float4x4 transform = matrix_scale_translate(source.viewportScale,
                                                            source.viewportOrigin);
 
@@ -228,16 +228,17 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
                           vertexCount:source.displayNumVertices];
         
         // Draw cursor
-        if (source.cursorVisible) {
+        id<CSRenderSource> cursorSource = source.cursorSource;
+        if (cursorSource && cursorSource.isVisible) {
             // Next render the cursor
             bool hasAlpha = YES;
-            bool isInverted = source.cursorInverted;
+            bool isInverted = cursorSource.isInverted;
             matrix_float4x4 transform = matrix_scale_translate(source.viewportScale,
                                                                CGPointMake(source.viewportOrigin.x +
-                                                                           source.cursorOrigin.x,
+                                                                           cursorSource.viewportOrigin.x,
                                                                            source.viewportOrigin.y +
-                                                                           source.cursorOrigin.y));
-            [renderEncoder setVertexBuffer:source.cursorVertices
+                                                                           cursorSource.viewportOrigin.y));
+            [renderEncoder setVertexBuffer:cursorSource.displayVertices
                                     offset:0
                                   atIndex:CSRenderVertexInputIndexVertices];
             [renderEncoder setVertexBytes:&_viewportSize
@@ -249,7 +250,7 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
             [renderEncoder setVertexBytes:&hasAlpha
                                  length:sizeof(hasAlpha)
                                 atIndex:CSRenderVertexInputIndexHasAlpha];
-            [renderEncoder setFragmentTexture:source.cursorTexture
+            [renderEncoder setFragmentTexture:cursorSource.displayTexture
                                       atIndex:CSRenderTextureIndexBaseColor];
             [renderEncoder setFragmentSamplerState:_sampler
                                            atIndex:CSRenderSamplerIndexTexture];
@@ -258,7 +259,7 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
                                     atIndex:CSRenderFragmentBufferIndexIsInverted];
             [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
                               vertexStart:0
-                              vertexCount:source.cursorNumVertices];
+                              vertexCount:cursorSource.displayNumVertices];
         }
 
         [renderEncoder endEncoding];

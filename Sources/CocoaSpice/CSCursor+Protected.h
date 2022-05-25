@@ -14,26 +14,25 @@
 // limitations under the License.
 //
 
-#import "CSChannel+Protected.h"
-#import <glib-object.h>
+#import "CSCursor.h"
 
-@implementation CSChannel
+typedef struct _SpiceCursorChannel SpiceCursorChannel;
 
-- (void)setSpiceMain:(SpiceMainChannel *)spiceMain {
-    if (_spiceMain) {
-        g_object_unref(_spiceMain);
-    }
-    _spiceMain = spiceMain ? g_object_ref(spiceMain) : NULL;
-}
+@class CSDisplayMetal;
 
-- (NSInteger)channelID {
-    gint chid;
-    g_object_get(self.spiceChannel, "channel-id", &chid, NULL);
-    return chid;
-}
+NS_ASSUME_NONNULL_BEGIN
 
-- (void)dealloc {
-    self.spiceMain = NULL; // call cleanup
-}
+@interface CSCursor ()
+
+/// Display to render this cursor into
+///
+/// Used to get the display size in order to compute the right viewpoint origin.
+@property (nonatomic, weak) CSDisplayMetal *display;
+
+/// Create a new cursor for a SPICE cursor channel
+/// @param channel SPICE cursor channel
+- (instancetype)initWithChannel:(SpiceCursorChannel *)channel NS_DESIGNATED_INITIALIZER;
 
 @end
+
+NS_ASSUME_NONNULL_END

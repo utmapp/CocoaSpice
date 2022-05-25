@@ -217,6 +217,13 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
         spice_channel_connect(channel);
     }
     
+    if (SPICE_IS_CURSOR_CHANNEL(channel)) {
+        SPICE_DEBUG("new cursor channel (#%d)", chid);
+        for (CSChannel *candidate in self.channels) {
+            // FIXME: set up cursor and link to display
+        }
+    }
+    
     if (SPICE_IS_INPUTS_CHANNEL(channel)) {
         SPICE_DEBUG("new inputs channel");
         CSInput *input = [[CSInput alloc] initWithChannel:SPICE_INPUTS_CHANNEL(channel)];

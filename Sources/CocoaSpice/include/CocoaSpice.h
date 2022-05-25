@@ -20,6 +20,7 @@
 #include "CSChannel.h"
 #include "CSConnection.h"
 #include "CSConnectionDelegate.h"
+#include "CSCursor.h"
 #include "CSDisplayMetal.h"
 #include "CSInput.h"
 #include "CSMain.h"

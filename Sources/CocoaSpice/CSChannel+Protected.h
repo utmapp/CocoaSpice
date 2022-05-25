@@ -29,6 +29,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// SPICE main channel
 @property (nonatomic, nullable) SpiceMainChannel *spiceMain;
 
+/// Channel ID number
+@property (nonatomic, readonly) NSInteger channelID;
+
 @end
 
 NS_ASSUME_NONNULL_END

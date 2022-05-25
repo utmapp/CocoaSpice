@@ -31,6 +31,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// Monitor number for this display
 @property (nonatomic, readonly) NSInteger monitorID;
 
+/// True if currently rendering from GL backend
+@property (nonatomic, readonly) BOOL isGLEnabled;
+
+@property (nonatomic, nullable, weak, readwrite) CSCursor *cursor;
+
 /// Create a new display for a given channel and monitor
 /// @param session SPICE session handling this display
 /// @param channelID Channel ID
