@@ -28,9 +28,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// Use this class to manage connections to SPICE and use the properties to interface with the client.
 @interface CSConnection : NSObject
 
-/// A list of all connected monitors specified by the client
-@property (nonatomic, readonly) NSArray<CSDisplayMetal *> *monitors;
-
 /// Session options including clipboard settings. Always non-null even when not connected.
 @property (nonatomic, readonly) CSSession *session;
 

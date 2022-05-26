@@ -309,12 +309,12 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                          G_CALLBACK(cs_primary_destroy), (__bridge void *)self);
         g_signal_connect(channel, "display-invalidate",
                          G_CALLBACK(cs_invalidate), (__bridge void *)self);
-        g_signal_connect_after(channel, "display-mark",
-                               G_CALLBACK(cs_mark), (__bridge void *)self);
-        g_signal_connect_after(channel, "notify::monitors",
-                               G_CALLBACK(cs_update_monitor_area), (__bridge void *)self);
-        g_signal_connect_after(channel, "gst-video-overlay",
-                               G_CALLBACK(cs_set_overlay), (__bridge void *)self);
+        g_signal_connect(channel, "display-mark",
+                         G_CALLBACK(cs_mark), (__bridge void *)self);
+        g_signal_connect(channel, "notify::monitors",
+                         G_CALLBACK(cs_update_monitor_area), (__bridge void *)self);
+        g_signal_connect(channel, "gst-video-overlay",
+                         G_CALLBACK(cs_set_overlay), (__bridge void *)self);
         g_signal_connect(channel, "notify::gl-scanout",
                          G_CALLBACK(cs_gl_scanout), (__bridge void *)self);
         g_signal_connect(channel, "gl-draw",
