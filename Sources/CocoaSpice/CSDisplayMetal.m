@@ -26,15 +26,6 @@
 #import <spice/protocol.h>
 #import <IOSurface/IOSurfaceRef.h>
 
-#ifdef DISPLAY_DEBUG
-#undef DISPLAY_DEBUG
-#endif
-#define DISPLAY_DEBUG(display, fmt, ...) \
-    SPICE_DEBUG("%d:%d " fmt, \
-                (int)display.channelID, \
-                (int)display.monitorID, \
-                ## __VA_ARGS__)
-
 @interface CSDisplayMetal ()
 
 @property (nonatomic, assign) BOOL ready;
@@ -128,7 +119,7 @@ static void cs_update_monitor_area(SpiceChannel *channel, GParamSpec *pspec, gpo
     GArray *monitors = NULL;
     int i;
     
-    DISPLAY_DEBUG(self, "update monitor area");
+    SPICE_DEBUG("[CocoaSpice] update monitor area");
     if (self.monitorID < 0)
         goto whole;
     
@@ -141,11 +132,11 @@ static void cs_update_monitor_area(SpiceChannel *channel, GParamSpec *pspec, gpo
         }
     }
     if (c == NULL) {
-        DISPLAY_DEBUG(self, "update monitor: no monitor %d", (int)self.monitorID);
+        SPICE_DEBUG("[CocoaSpice] update monitor: no monitor %d", (int)self.monitorID);
         self.ready = NO;
         if (spice_channel_test_capability(SPICE_CHANNEL(self.channel),
                                           SPICE_DISPLAY_CAP_MONITORS_CONFIG)) {
-            DISPLAY_DEBUG(self, "waiting until MonitorsConfig is received");
+            SPICE_DEBUG("[CocoaSpice] waiting until MonitorsConfig is received");
             g_clear_pointer(&monitors, g_array_unref);
             return;
         }
@@ -181,7 +172,7 @@ static void cs_gl_scanout(SpiceDisplayChannel *channel, GParamSpec *pspec, gpoin
 {
     CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
 
-    DISPLAY_DEBUG(self, "%s: got scanout",  __FUNCTION__);
+    SPICE_DEBUG("[CocoaSpice] %s: got scanout",  __FUNCTION__);
 
     const SpiceGlScanout *scanout;
 
@@ -201,7 +192,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 {
     CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
 
-    DISPLAY_DEBUG(self, "%s",  __FUNCTION__);
+    SPICE_DEBUG("[CocoaSpice] %s",  __FUNCTION__);
 
     self.isGLEnabled = YES;
     self.hasGLDrawAck = NO;
@@ -359,7 +350,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     }
     CGRect visible = CGRectIntersection(primary, rect);
     if (CGRectIsNull(visible)) {
-        DISPLAY_DEBUG(self, "The monitor area is not intersecting primary surface");
+        SPICE_DEBUG("[CocoaSpice] The monitor area is not intersecting primary surface");
         self.ready = NO;
         self.visibleArea = CGRectZero;
     } else {
