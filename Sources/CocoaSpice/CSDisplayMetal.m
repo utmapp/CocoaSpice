@@ -18,6 +18,7 @@
 #import "TargetConditionals.h"
 #import "CocoaSpice.h"
 #import "CSCursor+Protected.h"
+#import "CSChannel+Protected.h"
 #import "CSShaderTypes.h"
 #import <glib.h>
 #import <poll.h>
@@ -37,11 +38,8 @@
 @interface CSDisplayMetal ()
 
 @property (nonatomic, assign) BOOL ready;
-@property (nonatomic, readwrite, nullable) SpiceSession *session;
-@property (nonatomic, readwrite, assign) NSInteger channelID;
 @property (nonatomic, readwrite, assign) NSInteger monitorID;
-@property (nonatomic, nullable) SpiceDisplayChannel *display;
-@property (nonatomic, nullable) SpiceMainChannel *main;
+@property (nonatomic, nullable) SpiceDisplayChannel *channel;
 @property (nonatomic, readwrite) BOOL isGLEnabled;
 @property (nonatomic, readwrite) BOOL hasGLDrawAck;
 @property (nonatomic, nullable, weak, readwrite) CSCursor *cursor;
@@ -55,6 +53,7 @@
 
 // Other Drawing
 @property (nonatomic) CGRect visibleArea;
+@property (nonatomic, readwrite) CGSize displaySize;
 
 // CSRenderSource properties
 @property (nonatomic, nullable, readwrite) id<MTLTexture> canvasTexture;
@@ -133,7 +132,7 @@ static void cs_update_monitor_area(SpiceChannel *channel, GParamSpec *pspec, gpo
     if (self.monitorID < 0)
         goto whole;
     
-    g_object_get(self.display, "monitors", &monitors, NULL);
+    g_object_get(self.channel, "monitors", &monitors, NULL);
     for (i = 0; monitors != NULL && i < monitors->len; i++) {
         cfg = &g_array_index(monitors, SpiceDisplayMonitorConfig, i);
         if (cfg->id == self.monitorID) {
@@ -144,7 +143,7 @@ static void cs_update_monitor_area(SpiceChannel *channel, GParamSpec *pspec, gpo
     if (c == NULL) {
         DISPLAY_DEBUG(self, "update monitor: no monitor %d", (int)self.monitorID);
         self.ready = NO;
-        if (spice_channel_test_capability(SPICE_CHANNEL(self.display),
+        if (spice_channel_test_capability(SPICE_CHANNEL(self.channel),
                                           SPICE_DISPLAY_CAP_MONITORS_CONFIG)) {
             DISPLAY_DEBUG(self, "waiting until MonitorsConfig is received");
             g_clear_pointer(&monitors, g_array_unref);
@@ -186,7 +185,7 @@ static void cs_gl_scanout(SpiceDisplayChannel *channel, GParamSpec *pspec, gpoin
 
     const SpiceGlScanout *scanout;
 
-    scanout = spice_display_channel_get_gl_scanout(self.display);
+    scanout = spice_display_channel_get_gl_scanout(self.channel);
     /* should only be called when the display has a scanout */
     g_return_if_fail(scanout != NULL);
     
@@ -208,75 +207,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     self.hasGLDrawAck = NO;
 }
 
-#pragma mark - Channel events
-
-static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data) {
-    CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
-    gint channel_id;
-    
-    g_object_get(channel, "channel-id", &channel_id, NULL);
-    
-    if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
-        SpiceDisplayPrimary primary;
-        if (channel_id != self.channelID) {
-            return;
-        }
-        self.display = SPICE_DISPLAY_CHANNEL(channel);
-        SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
-        g_signal_connect(channel, "display-primary-create",
-                         G_CALLBACK(cs_primary_create), GLIB_OBJC_RETAIN(self));
-        g_signal_connect(channel, "display-primary-destroy",
-                         G_CALLBACK(cs_primary_destroy), GLIB_OBJC_RETAIN(self));
-        g_signal_connect(channel, "display-invalidate",
-                         G_CALLBACK(cs_invalidate), GLIB_OBJC_RETAIN(self));
-        g_signal_connect_after(channel, "display-mark",
-                               G_CALLBACK(cs_mark), GLIB_OBJC_RETAIN(self));
-        g_signal_connect_after(channel, "notify::monitors",
-                               G_CALLBACK(cs_update_monitor_area), GLIB_OBJC_RETAIN(self));
-        g_signal_connect_after(channel, "gst-video-overlay",
-                               G_CALLBACK(cs_set_overlay), GLIB_OBJC_RETAIN(self));
-        g_signal_connect(channel, "notify::gl-scanout",
-                         G_CALLBACK(cs_gl_scanout), GLIB_OBJC_RETAIN(self));
-        g_signal_connect(channel, "gl-draw",
-                         G_CALLBACK(cs_gl_draw), GLIB_OBJC_RETAIN(self));
-        if (spice_display_channel_get_primary(channel, 0, &primary)) {
-            cs_primary_create(channel, primary.format, primary.width, primary.height,
-                              primary.stride, primary.shmid, primary.data, (__bridge void *)self);
-            cs_mark(channel, primary.marked, (__bridge void *)self);
-        }
-        
-        spice_channel_connect(channel);
-        return;
-    }
-}
-
-static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer data) {
-    CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
-    gint channel_id;
-    
-    g_object_get(channel, "channel-id", &channel_id, NULL);
-    DISPLAY_DEBUG(self, "channel_destroy %d", channel_id);
-    
-    if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
-        if (channel_id != self.channelID) {
-            return;
-        }
-        cs_primary_destroy(self.display, (__bridge void *)self);
-        self.display = NULL;
-        SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_primary_create), GLIB_OBJC_RELEASE(self));
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_primary_destroy), GLIB_OBJC_RELEASE(self));
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_invalidate), GLIB_OBJC_RELEASE(self));
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_mark), GLIB_OBJC_RELEASE(self));
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_update_monitor_area), GLIB_OBJC_RELEASE(self));
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_set_overlay), GLIB_OBJC_RELEASE(self));
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_gl_scanout), GLIB_OBJC_RELEASE(self));
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_gl_draw), GLIB_OBJC_RELEASE(self));
-        return;
-    }
-    
-    return;
-}
+#pragma mark - Properties
 
 - (id<MTLDevice>)device {
     return _device;
@@ -291,11 +222,15 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
             [self rebuildScanoutTextureWithSurface:self.glTexture.iosurface width:self.glTexture.width height:self.glTexture.height];
         } else {
             // get scanout information from SPICE
-            cs_gl_scanout(self.display, NULL, (__bridge void *)self);
+            cs_gl_scanout(self.channel, NULL, (__bridge void *)self);
         }
     } else {
         [self rebuildCanvasTexture];
     }
+}
+
+- (SpiceChannel *)spiceChannel {
+    return SPICE_CHANNEL(self.channel);
 }
 
 - (CSScreenshot *)screenshot {
@@ -345,7 +280,7 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
 }
 
 - (BOOL)isVisible {
-    return YES; // always visible
+    return self.ready;
 }
 
 - (BOOL)isInverted {
@@ -368,52 +303,51 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
 
 #pragma mark - Methods
 
-- (instancetype)initWithSession:(nonnull SpiceSession *)session channelID:(NSInteger)channelID monitorID:(NSInteger)monitorID {
-    if (self = [super init]) {
-        GList *list;
-        GList *it;
-        
+- (instancetype)initWithChannel:(SpiceDisplayChannel *)channel monitorID:(NSInteger)monitorID {
+    if (self = [self init]) {
+        SpiceDisplayPrimary primary;
         self.canvasLock = dispatch_semaphore_create(1);
         self.viewportScale = 1.0f;
         self.viewportOrigin = CGPointMake(0, 0);
-        self.channelID = channelID;
         self.monitorID = monitorID;
-        self.session = session;
-        g_object_ref(session);
-        
+        self.channel = g_object_ref(channel);
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
-        g_signal_connect(session, "channel-new",
-                         G_CALLBACK(cs_channel_new), GLIB_OBJC_RETAIN(self));
-        g_signal_connect(session, "channel-destroy",
-                         G_CALLBACK(cs_channel_destroy), GLIB_OBJC_RETAIN(self));
-        list = spice_session_get_channels(session);
-        for (it = g_list_first(list); it != NULL; it = g_list_next(it)) {
-            if (SPICE_IS_MAIN_CHANNEL(it->data)) {
-                cs_channel_new(session, it->data, (__bridge void *)self);
-                break;
-            }
+        g_signal_connect(channel, "display-primary-create",
+                         G_CALLBACK(cs_primary_create), (__bridge void *)self);
+        g_signal_connect(channel, "display-primary-destroy",
+                         G_CALLBACK(cs_primary_destroy), (__bridge void *)self);
+        g_signal_connect(channel, "display-invalidate",
+                         G_CALLBACK(cs_invalidate), (__bridge void *)self);
+        g_signal_connect_after(channel, "display-mark",
+                               G_CALLBACK(cs_mark), (__bridge void *)self);
+        g_signal_connect_after(channel, "notify::monitors",
+                               G_CALLBACK(cs_update_monitor_area), (__bridge void *)self);
+        g_signal_connect_after(channel, "gst-video-overlay",
+                               G_CALLBACK(cs_set_overlay), (__bridge void *)self);
+        g_signal_connect(channel, "notify::gl-scanout",
+                         G_CALLBACK(cs_gl_scanout), (__bridge void *)self);
+        g_signal_connect(channel, "gl-draw",
+                         G_CALLBACK(cs_gl_draw), (__bridge void *)self);
+        if (spice_display_channel_get_primary(self.spiceChannel, 0, &primary)) {
+            cs_primary_create(self.spiceChannel, primary.format, primary.width, primary.height,
+                              primary.stride, primary.shmid, primary.data, (__bridge void *)self);
+            cs_mark(self.spiceChannel, primary.marked, (__bridge void *)self);
         }
-        for (it = g_list_first(list); it != NULL; it = g_list_next(it)) {
-            if (!SPICE_IS_MAIN_CHANNEL(it->data))
-                cs_channel_new(session, it->data, (__bridge void *)self);
-        }
-        g_list_free(list);
     }
     return self;
 }
 
 - (void)dealloc {
-    if (self.display) {
-        cs_channel_destroy(self.session, SPICE_CHANNEL(self.display), (__bridge void *)self);
-    }
-    if (self.main) {
-        cs_channel_destroy(self.session, SPICE_CHANNEL(self.main), (__bridge void *)self);
-    }
     SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
-    g_signal_handlers_disconnect_by_func(self.session, G_CALLBACK(cs_channel_new), GLIB_OBJC_RELEASE(self));
-    g_signal_handlers_disconnect_by_func(self.session, G_CALLBACK(cs_channel_destroy), GLIB_OBJC_RELEASE(self));
-    g_object_unref(self.session);
-    self.session = NULL;
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_primary_create), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_primary_destroy), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_invalidate), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_mark), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_update_monitor_area), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_set_overlay), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_gl_scanout), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_gl_draw), (__bridge void *)self);
+    g_object_unref(self.channel);
 }
 
 - (void)updateVisibleAreaWithRect:(CGRect)rect {
@@ -533,12 +467,8 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     dispatch_semaphore_signal(self.canvasLock);
 }
 
-- (BOOL)visible {
-    return self.ready;
-}
-
 - (void)requestResolution:(CGRect)bounds {
-    SpiceMainChannel *main = self.main;
+    SpiceMainChannel *main = self.spiceMain;
     if (!main) {
         SPICE_DEBUG("[CocoaSpice] ignoring change resolution because main channel not found");
         return;
@@ -557,7 +487,7 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
 }
 
 - (void)rendererFrameHasRendered {
-    SpiceDisplayChannel *display = self.display;
+    SpiceDisplayChannel *display = self.channel;
     if (display && self.isGLEnabled && !self.hasGLDrawAck) {
         [CSMain.sharedInstance asyncWith:^{
             spice_display_channel_gl_draw_done(display);

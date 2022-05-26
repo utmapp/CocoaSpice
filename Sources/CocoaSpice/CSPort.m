@@ -112,10 +112,6 @@ static void cs_port_write_cb(GObject *source_object,
     return SPICE_CHANNEL(self.channel);
 }
 
-- (SpiceMainChannel *)spiceMain {
-    return NULL; // not used
-}
-
 - (NSString *)name {
     NSString *nsname = nil;
     gchar *name = NULL;

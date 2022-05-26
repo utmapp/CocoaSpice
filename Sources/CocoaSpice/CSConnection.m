@@ -120,7 +120,7 @@ static void cs_display_monitors(SpiceChannel *display, GParamSpec *pspec,
             }
         }
         if (j == oldMonitors.count) { // not seen
-            CSDisplayMetal *monitor = [[CSDisplayMetal alloc] initWithSession:self.spiceSession channelID:chid monitorID:i];
+            CSDisplayMetal *monitor = [[CSDisplayMetal alloc] initWithChannel:SPICE_DISPLAY_CHANNEL(display) monitorID:i];
             [newMonitors addObject:monitor];
             [self.delegate spiceDisplayCreated:self display:monitor];
         }

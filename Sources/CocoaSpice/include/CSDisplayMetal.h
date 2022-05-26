@@ -15,6 +15,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "CSChannel.h"
 @import CoreGraphics;
 @import CocoaSpiceRenderer;
 
@@ -26,12 +27,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// Handles display rendering and resolution
 ///
 /// This implements the `CSRenderSource` protocol which can be used to render to a Metal device.
-@interface CSDisplayMetal : NSObject <CSRenderSource>
+@interface CSDisplayMetal : CSChannel <CSRenderSource>
 
 /// The current size of the display.
 /// You can add an observer on this property to detect when the display resolution changes.
-/// FIXME: this should be readonly
-@property (nonatomic, assign) CGSize displaySize;
+@property (nonatomic, readonly) CGSize displaySize;
 
 /// This converts the current display state to an image for saving.
 /// Do NOT use this to render the display as it is slow and inefficient.

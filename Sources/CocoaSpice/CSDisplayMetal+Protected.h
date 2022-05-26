@@ -16,17 +16,11 @@
 
 #import "CSDisplayMetal.h"
 
-typedef struct _SpiceSession SpiceSession;
+typedef struct _SpiceDisplayChannel SpiceDisplayChannel;
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface CSDisplayMetal ()
-
-/// SPICE GTK session
-@property (nonatomic, readonly, nullable) SpiceSession *session;
-
-/// Channel number for this display
-@property (nonatomic, readonly) NSInteger channelID;
 
 /// Monitor number for this display
 @property (nonatomic, readonly) NSInteger monitorID;
@@ -34,13 +28,15 @@ NS_ASSUME_NONNULL_BEGIN
 /// True if currently rendering from GL backend
 @property (nonatomic, readonly) BOOL isGLEnabled;
 
+/// SPICE display channel
+@property (nonatomic, nullable, readonly) SpiceDisplayChannel *channel;
+
 @property (nonatomic, nullable, weak, readwrite) CSCursor *cursor;
 
 /// Create a new display for a given channel and monitor
-/// @param session SPICE session handling this display
-/// @param channelID Channel ID
-/// @param monitorID Monitor ID
-- (instancetype)initWithSession:(nonnull SpiceSession *)session channelID:(NSInteger)channelID monitorID:(NSInteger)monitorID NS_DESIGNATED_INITIALIZER;
+/// @param channel Display channel
+/// @param monitorID Monitor in the channel
+- (instancetype)initWithChannel:(SpiceDisplayChannel *)channel monitorID:(NSInteger)monitorID NS_DESIGNATED_INITIALIZER;
 
 @end
 
