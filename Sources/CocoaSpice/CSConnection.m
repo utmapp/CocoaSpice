@@ -114,13 +114,13 @@ static void cs_display_monitors(SpiceChannel *display, GParamSpec *pspec,
         int j;
         for (j = 0; j < oldMonitors.count; j++) {
             CSDisplayMetal *monitor = oldMonitors[j];
-            if (cfg->id == monitor.monitorID && chid == monitor.channelID) {
+            if (cfg->id == 0 && chid == monitor.channelID) {
                 [markedItems addIndex:j];
                 break;
             }
         }
         if (j == oldMonitors.count) { // not seen
-            CSDisplayMetal *monitor = [[CSDisplayMetal alloc] initWithChannel:SPICE_DISPLAY_CHANNEL(display) monitorID:i];
+            CSDisplayMetal *monitor = [[CSDisplayMetal alloc] initWithChannel:SPICE_DISPLAY_CHANNEL(display)];
             [newMonitors addObject:monitor];
             [self.delegate spiceDisplayCreated:self display:monitor];
         }

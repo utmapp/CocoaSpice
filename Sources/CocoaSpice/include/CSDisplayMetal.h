@@ -27,6 +27,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Handles display rendering and resolution
 ///
 /// This implements the `CSRenderSource` protocol which can be used to render to a Metal device.
+/// Note: multiple monitors on a single display channel is not supported.
 @interface CSDisplayMetal : CSChannel <CSRenderSource>
 
 /// The current size of the display.

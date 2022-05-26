@@ -22,9 +22,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface CSDisplayMetal ()
 
-/// Monitor number for this display
-@property (nonatomic, readonly) NSInteger monitorID;
-
 /// True if currently rendering from GL backend
 @property (nonatomic, readonly) BOOL isGLEnabled;
 
@@ -36,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Create a new display for a given channel and monitor
 /// @param channel Display channel
 /// @param monitorID Monitor in the channel
-- (instancetype)initWithChannel:(SpiceDisplayChannel *)channel monitorID:(NSInteger)monitorID NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithChannel:(SpiceDisplayChannel *)channel NS_DESIGNATED_INITIALIZER;
 
 @end
 

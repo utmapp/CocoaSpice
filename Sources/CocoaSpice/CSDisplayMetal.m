@@ -29,7 +29,7 @@
 @interface CSDisplayMetal ()
 
 @property (nonatomic, assign) BOOL ready;
-@property (nonatomic, readwrite, assign) NSInteger monitorID;
+@property (nonatomic, readwrite) NSInteger monitorID;
 @property (nonatomic, nullable) SpiceDisplayChannel *channel;
 @property (nonatomic, readwrite) BOOL isGLEnabled;
 @property (nonatomic, readwrite) BOOL hasGLDrawAck;
@@ -294,13 +294,13 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
 #pragma mark - Methods
 
-- (instancetype)initWithChannel:(SpiceDisplayChannel *)channel monitorID:(NSInteger)monitorID {
+- (instancetype)initWithChannel:(SpiceDisplayChannel *)channel {
     if (self = [self init]) {
         SpiceDisplayPrimary primary;
         self.canvasLock = dispatch_semaphore_create(1);
         self.viewportScale = 1.0f;
         self.viewportOrigin = CGPointMake(0, 0);
-        self.monitorID = monitorID;
+        self.monitorID = 0; // only support 1 monitor
         self.channel = g_object_ref(channel);
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         g_signal_connect(channel, "display-primary-create",
