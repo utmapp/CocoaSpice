@@ -117,7 +117,7 @@ static void cs_display_monitors(SpiceChannel *channel, GParamSpec *pspec,
         if (cfgs->len > 1) {
             g_warning("[CocoaSpice] the client specified multiple monitors but only the first monitor will be used!");
         }
-        [self.delegate spiceDisplayCreated:self display:display];
+        [self.delegate spiceDisplayCreatedOrUpdated:self display:display];
     } else {
         [self.delegate spiceDisplayDestroyed:self display:display];
     }

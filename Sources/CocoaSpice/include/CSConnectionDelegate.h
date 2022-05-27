@@ -77,10 +77,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// @param msg Error message (in English)
 - (void)spiceError:(CSConnection *)connection code:(CSConnectionError)code message:(nullable NSString *)message;
 
-/// Client created a new display
+/// Client created a new display or updated the display configuration
 /// @param connection The connection
 /// @param display The display created
-- (void)spiceDisplayCreated:(CSConnection *)connection display:(CSDisplay *)display;
+- (void)spiceDisplayCreatedOrUpdated:(CSConnection *)connection display:(CSDisplay *)display;
 
 /// Client closed a display
 /// @param connection The connection
