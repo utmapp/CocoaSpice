@@ -26,7 +26,7 @@
 #import <spice/protocol.h>
 #import <IOSurface/IOSurfaceRef.h>
 
-@interface CSDisplayMetal ()
+@interface CSDisplay ()
 
 @property (nonatomic, assign) BOOL ready;
 @property (nonatomic, readwrite) NSInteger monitorID;
@@ -56,7 +56,7 @@
 
 @end
 
-@implementation CSDisplayMetal {
+@implementation CSDisplay {
     id<MTLDevice> _device;
 }
 
@@ -65,7 +65,7 @@
 static void cs_primary_create(SpiceChannel *channel, gint format,
                            gint width, gint height, gint stride,
                            gint shmid, gpointer imgdata, gpointer data) {
-    CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
+    CSDisplay *self = (__bridge CSDisplay *)data;
     
     g_assert(format == SPICE_SURFACE_FMT_32_xRGB || format == SPICE_SURFACE_FMT_16_555);
     dispatch_semaphore_wait(self.canvasLock, DISPATCH_TIME_FOREVER);
@@ -79,7 +79,7 @@ static void cs_primary_create(SpiceChannel *channel, gint format,
 }
 
 static void cs_primary_destroy(SpiceDisplayChannel *channel, gpointer data) {
-    CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
+    CSDisplay *self = (__bridge CSDisplay *)data;
     self.ready = NO;
     
     dispatch_semaphore_wait(self.canvasLock, DISPATCH_TIME_FOREVER);
@@ -92,7 +92,7 @@ static void cs_primary_destroy(SpiceDisplayChannel *channel, gpointer data) {
 
 static void cs_invalidate(SpiceChannel *channel,
                        gint x, gint y, gint w, gint h, gpointer data) {
-    CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
+    CSDisplay *self = (__bridge CSDisplay *)data;
     CGRect rect = CGRectIntersection(CGRectMake(x, y, w, h), self.visibleArea);
     self.isGLEnabled = NO;
     if (!CGRectIsEmpty(rect)) {
@@ -101,7 +101,7 @@ static void cs_invalidate(SpiceChannel *channel,
 }
 
 static void cs_mark(SpiceChannel *channel, gint mark, gpointer data) {
-    //CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
+    //CSDisplay *self = (__bridge CSDisplay *)data;
     //@synchronized (self) {
     //    self->_mark = mark; // currently this does nothing for us
     //}
@@ -109,12 +109,12 @@ static void cs_mark(SpiceChannel *channel, gint mark, gpointer data) {
 
 static gboolean cs_set_overlay(SpiceChannel *channel, void* pipeline_ptr, gpointer data) {
     //FIXME: implement overlay
-    //CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
+    //CSDisplay *self = (__bridge CSDisplay *)data;
     return false;
 }
 
 static void cs_update_monitor_area(SpiceChannel *channel, GParamSpec *pspec, gpointer data) {
-    CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
+    CSDisplay *self = (__bridge CSDisplay *)data;
     SpiceDisplayMonitorConfig *cfg, *c = NULL;
     GArray *monitors = NULL;
     int i;
@@ -170,7 +170,7 @@ whole:
 
 static void cs_gl_scanout(SpiceDisplayChannel *channel, GParamSpec *pspec, gpointer data)
 {
-    CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
+    CSDisplay *self = (__bridge CSDisplay *)data;
 
     SPICE_DEBUG("[CocoaSpice] %s: got scanout",  __FUNCTION__);
 
@@ -190,7 +190,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                        guint32 x, guint32 y, guint32 w, guint32 h,
                        gpointer data)
 {
-    CSDisplayMetal *self = (__bridge CSDisplayMetal *)data;
+    CSDisplay *self = (__bridge CSDisplay *)data;
 
     SPICE_DEBUG("[CocoaSpice] %s",  __FUNCTION__);
 

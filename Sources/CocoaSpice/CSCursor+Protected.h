@@ -18,7 +18,7 @@
 
 typedef struct _SpiceCursorChannel SpiceCursorChannel;
 
-@class CSDisplayMetal;
+@class CSDisplay;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -27,7 +27,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Display to render this cursor into
 ///
 /// Used to get the display size in order to compute the right viewpoint origin.
-@property (nonatomic, weak) CSDisplayMetal *display;
+@property (nonatomic, weak) CSDisplay *display;
 
 /// Create a new cursor for a SPICE cursor channel
 /// @param channel SPICE cursor channel

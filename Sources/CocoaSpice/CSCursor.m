@@ -16,13 +16,13 @@
 
 #import "CocoaSpice.h"
 #import "CSChannel+Protected.h"
-#import "CSDisplayMetal+Protected.h"
+#import "CSDisplay+Protected.h"
 #import <glib.h>
 #import <spice-client.h>
 
 @interface CSCursor ()
 
-@property (nonatomic, weak) CSDisplayMetal *display;
+@property (nonatomic, weak) CSDisplay *display;
 @property (nonatomic, readwrite) SpiceCursorChannel *channel;
 @property (nonatomic, readwrite) CGSize cursorSize;
 @property (nonatomic, readwrite) CGPoint cursorHotspot;
@@ -159,7 +159,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
 }
 
 - (CGPoint)viewportOrigin {
-    CSDisplayMetal *display = self.display;
+    CSDisplay *display = self.display;
     if (!display) {
         return CGPointZero;
     }

@@ -18,7 +18,7 @@
 #import "CSConnectionDelegate.h"
 #import "CSChannel.h"
 
-@class CSDisplayMetal;
+@class CSDisplay;
 @class CSUSBManager;
 
 NS_ASSUME_NONNULL_BEGIN

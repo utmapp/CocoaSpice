@@ -14,13 +14,13 @@
 // limitations under the License.
 //
 
-#import "CSDisplayMetal.h"
+#import "CSDisplay.h"
 
 typedef struct _SpiceDisplayChannel SpiceDisplayChannel;
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface CSDisplayMetal ()
+@interface CSDisplay ()
 
 /// True if currently rendering from GL backend
 @property (nonatomic, readonly) BOOL isGLEnabled;

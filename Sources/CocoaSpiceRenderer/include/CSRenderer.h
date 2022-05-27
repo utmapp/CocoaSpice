@@ -24,7 +24,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Simple platform independent renderer for CocoaSpice
 @interface CSRenderer : NSObject<MTKViewDelegate>
 
-/// Render source (comes from `CSDisplayMetal`)
+/// Render source (comes from `CSDisplay`)
 @property (nonatomic, weak, nullable) id<CSRenderSource> source;
 
 /// Create a new renderer for a MTKView

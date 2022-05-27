@@ -21,7 +21,7 @@
 #include "CSConnection.h"
 #include "CSConnectionDelegate.h"
 #include "CSCursor.h"
-#include "CSDisplayMetal.h"
+#include "CSDisplay.h"
 #include "CSInput.h"
 #include "CSMain.h"
 #include "CSPasteboardDelegate.h"

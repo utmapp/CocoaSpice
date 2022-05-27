@@ -17,7 +17,7 @@
 #import "CocoaSpice.h"
 #import "CSChannel+Protected.h"
 #import "CSCursor+Protected.h"
-#import "CSDisplayMetal+Protected.h"
+#import "CSDisplay+Protected.h"
 #import "CSInput+Protected.h"
 #import "CSSession+Protected.h"
 #import "CSPort+Protected.h"
@@ -95,7 +95,7 @@ static void cs_display_monitors(SpiceChannel *channel, GParamSpec *pspec,
 {
     CSConnection *self = (__bridge CSConnection *)data;
     GArray *cfgs = NULL;
-    CSDisplayMetal *display = nil;
+    CSDisplay *display = nil;
     
     g_object_get(channel,
                  "monitors", &cfgs,
@@ -104,8 +104,8 @@ static void cs_display_monitors(SpiceChannel *channel, GParamSpec *pspec,
     
     for (CSChannel *candidate in self.channels) {
         if (candidate.spiceChannel == channel) {
-            assert([candidate isKindOfClass:CSDisplayMetal.class]);
-            display = (CSDisplayMetal *)candidate;
+            assert([candidate isKindOfClass:CSDisplay.class]);
+            display = (CSDisplay *)candidate;
             break;
         }
     }
@@ -188,7 +188,7 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
     
     if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
         SPICE_DEBUG("new display channel (#%d)", chid);
-        CSDisplayMetal *display = [[CSDisplayMetal alloc] initWithChannel:SPICE_DISPLAY_CHANNEL(channel)];
+        CSDisplay *display = [[CSDisplay alloc] initWithChannel:SPICE_DISPLAY_CHANNEL(channel)];
         [self.mutableChannels addObject:display];
         g_signal_connect_after(channel, "notify::monitors",
                                G_CALLBACK(cs_display_monitors), (__bridge void *)self);
@@ -209,8 +209,8 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
         [self.mutableChannels addObject:cursor];
         // find and connect to any existing display channel
         for (CSChannel *candidate in self.channels) {
-            if ([candidate isKindOfClass:CSDisplayMetal.class] && candidate.channelID == chid) {
-                CSDisplayMetal *display = (CSDisplayMetal *)candidate;
+            if ([candidate isKindOfClass:CSDisplay.class] && candidate.channelID == chid) {
+                CSDisplay *display = (CSDisplay *)candidate;
                 display.cursor = cursor;
                 break;
             }

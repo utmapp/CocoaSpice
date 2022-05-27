@@ -17,7 +17,7 @@
 #import <Foundation/Foundation.h>
 
 @class CSConnection;
-@class CSDisplayMetal;
+@class CSDisplay;
 @class CSInput;
 @class CSPort;
 @class CSSession;
@@ -80,12 +80,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Client created a new display
 /// @param connection The connection
 /// @param display The display created
-- (void)spiceDisplayCreated:(CSConnection *)connection display:(CSDisplayMetal *)display;
+- (void)spiceDisplayCreated:(CSConnection *)connection display:(CSDisplay *)display;
 
 /// Client closed a display
 /// @param connection The connection
 /// @param display The display that was closed
-- (void)spiceDisplayDestroyed:(CSConnection *)connection display:(CSDisplayMetal *)display;
+- (void)spiceDisplayDestroyed:(CSConnection *)connection display:(CSDisplay *)display;
 
 /// Client running SPICE guest tools connected
 /// @param connection The connection

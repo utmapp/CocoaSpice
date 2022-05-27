@@ -17,7 +17,7 @@
 #import "CSChannel.h"
 @import CocoaSpiceRenderer;
 
-@class CSDisplayMetal;
+@class CSDisplay;
 
 NS_ASSUME_NONNULL_BEGIN
 
