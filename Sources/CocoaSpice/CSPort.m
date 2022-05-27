@@ -90,19 +90,19 @@ static void cs_port_write_cb(GObject *source_object,
         self.cacheBuffer = [NSMutableData data];
         self.channel = g_object_ref(channel);
         g_signal_connect(channel, "notify::port-opened",
-                         G_CALLBACK(cs_port_opened), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_port_opened), (__bridge void *)self);
         g_signal_connect(channel, "port-data",
-                         G_CALLBACK(cs_port_data), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_port_data), (__bridge void *)self);
         g_signal_connect(channel, "port-event",
-                         G_CALLBACK(cs_port_event), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_port_event), (__bridge void *)self);
     }
     return self;
 }
 
 - (void)dealloc {
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_opened), GLIB_OBJC_RELEASE(self));
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_data), GLIB_OBJC_RELEASE(self));
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_event), GLIB_OBJC_RELEASE(self));
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_opened), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_data), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_event), (__bridge void *)self);
     g_object_unref(self.channel);
 }
 

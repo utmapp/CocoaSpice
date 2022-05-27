@@ -181,9 +181,9 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
         self.spiceMain = SPICE_MAIN_CHANNEL(channel);
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         g_signal_connect(channel, "channel-event",
-                         G_CALLBACK(cs_main_channel_event), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_main_channel_event), (__bridge void *)self);
         g_signal_connect(channel, "main_agent_update",
-                         G_CALLBACK(cs_main_agent_update), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_main_agent_update), (__bridge void *)self);
     }
     
     if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
@@ -191,7 +191,7 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
         CSDisplayMetal *display = [[CSDisplayMetal alloc] initWithChannel:SPICE_DISPLAY_CHANNEL(channel)];
         [self.mutableChannels addObject:display];
         g_signal_connect_after(channel, "notify::monitors",
-                               G_CALLBACK(cs_display_monitors), GLIB_OBJC_RETAIN(self));
+                               G_CALLBACK(cs_display_monitors), (__bridge void *)self);
         // find and connect to any existing cursor channel
         for (CSChannel *candidate in self.channels) {
             if ([candidate isKindOfClass:CSCursor.class] && candidate.channelID == chid) {
@@ -242,8 +242,8 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
         CSPort *port = [[CSPort alloc] initWithChannel:SPICE_PORT_CHANNEL(channel)];
         port.connection = self;
         [self.mutableChannels addObject:port];
-        g_signal_connect(channel, "notify::port-opened",
-                         G_CALLBACK(cs_port_opened), GLIB_OBJC_RETAIN(self));
+        g_signal_connect_after(channel, "notify::port-opened",
+                               G_CALLBACK(cs_port_opened), (__bridge void *)self);
         spice_channel_connect(channel);
     }
 }
@@ -258,13 +258,13 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         SPICE_DEBUG("zap main channel");
         self.spiceMain = NULL;
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_main_channel_event), GLIB_OBJC_RELEASE(self));
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_main_agent_update), GLIB_OBJC_RELEASE(self));
+        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_main_channel_event), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_main_agent_update), (__bridge void *)self);
     }
     
     if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
         SPICE_DEBUG("zap display channel (#%d)", chid);
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_display_monitors), GLIB_OBJC_RELEASE(self));
+        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_display_monitors), (__bridge void *)self);
     }
     
     if (SPICE_IS_INPUTS_CHANNEL(channel)) {
@@ -282,7 +282,7 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     }
     
     if (SPICE_IS_PORT_CHANNEL(channel)) {
-        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_port_opened), GLIB_OBJC_RELEASE(self));
+        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_port_opened), (__bridge void *)self);
     }
     
     for (NSInteger i = self.mutableChannels.count-1; i >= 0; i--) {
@@ -345,21 +345,25 @@ static void cs_connection_destroy(SpiceSession *session,
 
 - (void)dealloc {
     SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
-    g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_channel_new), GLIB_OBJC_RELEASE(self));
-    g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_channel_destroy), GLIB_OBJC_RELEASE(self));
-    g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_connection_destroy), GLIB_OBJC_RELEASE(self));
+    g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_channel_new), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_channel_destroy), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_connection_destroy), (__bridge void *)self);
+    for (NSInteger i = self.channels.count-1; i >= 0; i--) {
+        CSChannel* wrap = self.channels[i];
+        cs_channel_destroy(self.spiceSession, wrap.spiceChannel, (__bridge void *)self);
+    }
+    cs_channel_destroy(self.spiceSession, SPICE_CHANNEL(self.spiceMain), (__bridge void *)self);
     g_object_unref(self.spiceSession);
-    self.spiceSession = NULL;
 }
 
 - (void)finishInit {
     SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
     g_signal_connect(self.spiceSession, "channel-new",
-                     G_CALLBACK(cs_channel_new), GLIB_OBJC_RETAIN(self));
+                     G_CALLBACK(cs_channel_new), (__bridge void *)self);
     g_signal_connect(self.spiceSession, "channel-destroy",
-                     G_CALLBACK(cs_channel_destroy), GLIB_OBJC_RETAIN(self));
+                     G_CALLBACK(cs_channel_destroy), (__bridge void *)self);
     g_signal_connect(self.spiceSession, "disconnected",
-                     G_CALLBACK(cs_connection_destroy), GLIB_OBJC_RETAIN(self));
+                     G_CALLBACK(cs_connection_destroy), (__bridge void *)self);
     
 #if defined(WITH_USB_SUPPORT)
     SpiceUsbDeviceManager *manager = spice_usb_device_manager_get(self.spiceSession, NULL);

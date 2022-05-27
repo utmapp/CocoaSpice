@@ -136,7 +136,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     [super setSpiceMain:spiceMain];
     if (spiceMain) {
         g_signal_connect(spiceMain, "main-mouse-update",
-                         G_CALLBACK(cs_update_mouse_mode), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_update_mouse_mode), (__bridge void *)self);
         cs_update_mouse_mode(SPICE_CHANNEL(spiceMain), (__bridge void *)self);
     }
 }

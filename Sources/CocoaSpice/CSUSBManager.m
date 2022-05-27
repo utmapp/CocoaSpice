@@ -181,24 +181,25 @@ static gboolean cs_call_manager(gpointer user_data)
 
 - (instancetype)initWithUsbDeviceManager:(SpiceUsbDeviceManager *)usbDeviceManager {
     if (self = [super init]) {
-        self.usbDeviceManager = usbDeviceManager;
+        self.usbDeviceManager = g_object_ref(usbDeviceManager);
         g_signal_connect(usbDeviceManager, "auto-connect-failed",
-                         G_CALLBACK(cs_device_error), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_device_error), (__bridge void *)self);
         g_signal_connect(usbDeviceManager, "device-error",
-                         G_CALLBACK(cs_device_error), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_device_error), (__bridge void *)self);
         g_signal_connect(usbDeviceManager, "device-added",
-                         G_CALLBACK(cs_device_added), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_device_added), (__bridge void *)self);
         g_signal_connect(usbDeviceManager, "device-removed",
-                         G_CALLBACK(cs_device_removed), GLIB_OBJC_RETAIN(self));
+                         G_CALLBACK(cs_device_removed), (__bridge void *)self);
     }
     return self;
 }
 
 - (void)dealloc {
-    g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_error), GLIB_OBJC_RELEASE(self));
-    g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_error), GLIB_OBJC_RELEASE(self));
-    g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_added), GLIB_OBJC_RELEASE(self));
-    g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_removed), GLIB_OBJC_RELEASE(self));
+    g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_error), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_error), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_added), (__bridge void *)self);
+    g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_removed), (__bridge void *)self);
+    g_object_unref(self.usbDeviceManager);
 }
 
 #pragma mark - Methods
