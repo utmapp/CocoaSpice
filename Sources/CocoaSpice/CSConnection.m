@@ -189,6 +189,7 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
     if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
         SPICE_DEBUG("new display channel (#%d)", chid);
         CSDisplay *display = [[CSDisplay alloc] initWithChannel:SPICE_DISPLAY_CHANNEL(channel)];
+        display.spiceMain = self.spiceMain;
         [self.mutableChannels addObject:display];
         g_signal_connect_after(channel, "notify::monitors",
                                G_CALLBACK(cs_display_monitors), (__bridge void *)self);
@@ -206,6 +207,7 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
     if (SPICE_IS_CURSOR_CHANNEL(channel)) {
         SPICE_DEBUG("new cursor channel (#%d)", chid);
         CSCursor *cursor = [[CSCursor alloc] initWithChannel:SPICE_CURSOR_CHANNEL(channel)];
+        cursor.spiceMain = self.spiceMain;
         [self.mutableChannels addObject:cursor];
         // find and connect to any existing display channel
         for (CSChannel *candidate in self.channels) {
@@ -240,6 +242,7 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
     if (SPICE_IS_PORT_CHANNEL(channel)) {
         SPICE_DEBUG("new port channel");
         CSPort *port = [[CSPort alloc] initWithChannel:SPICE_PORT_CHANNEL(channel)];
+        port.spiceMain = self.spiceMain;
         port.connection = self;
         [self.mutableChannels addObject:port];
         g_signal_connect_after(channel, "notify::port-opened",
