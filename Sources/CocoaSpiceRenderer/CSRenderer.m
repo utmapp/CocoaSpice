@@ -162,6 +162,52 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     return m;
 }
 
+- (void)renderSource:(id<CSRenderSource>)source withEncoder:(id<MTLRenderCommandEncoder>)renderEncoder atOffset:(CGPoint)offset {
+    
+    bool hasAlpha = source.hasAlpha;
+    bool isInverted = source.isInverted;
+    CGPoint viewportOrigin = CGPointMake(source.viewportOrigin.x +
+                                         offset.x,
+                                         source.viewportOrigin.y +
+                                         offset.y);
+    matrix_float4x4 transform = matrix_scale_translate(source.viewportScale,
+                                                       viewportOrigin);
+
+    [renderEncoder setVertexBuffer:source.vertices
+                            offset:0
+                          atIndex:CSRenderVertexInputIndexVertices];
+
+    [renderEncoder setVertexBytes:&_viewportSize
+                           length:sizeof(_viewportSize)
+                          atIndex:CSRenderVertexInputIndexViewportSize];
+
+    [renderEncoder setVertexBytes:&transform
+                           length:sizeof(transform)
+                          atIndex:CSRenderVertexInputIndexTransform];
+
+    [renderEncoder setVertexBytes:&hasAlpha
+                           length:sizeof(hasAlpha)
+                          atIndex:CSRenderVertexInputIndexHasAlpha];
+    
+    // Set the texture object.  The CSRenderTextureIndexBaseColor enum value corresponds
+    ///  to the 'colorMap' argument in our 'samplingShader' function because its
+    //   texture attribute qualifier also uses CSRenderTextureIndexBaseColor for its index
+    [renderEncoder setFragmentTexture:source.texture
+                              atIndex:CSRenderTextureIndexBaseColor];
+    
+    [renderEncoder setFragmentSamplerState:_sampler
+                                   atIndex:CSRenderSamplerIndexTexture];
+    
+    [renderEncoder setFragmentBytes:&isInverted
+                             length:sizeof(isInverted)
+                            atIndex:CSRenderFragmentBufferIndexIsInverted];
+
+    // Draw the vertices of our triangles
+    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                      vertexStart:0
+                      vertexCount:source.numVertices];
+}
+
 /// Called whenever the view needs to render a frame
 - (void)drawInMTKView:(nonnull MTKView *)view
 {
@@ -184,82 +230,18 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
         [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
         renderEncoder.label = @"MyRenderEncoder";
         
-        // Render the screen first
-        
-        bool hasAlpha = NO;
-        bool isInverted = source.isInverted;
-        matrix_float4x4 transform = matrix_scale_translate(source.viewportScale,
-                                                           source.viewportOrigin);
-
         [renderEncoder setRenderPipelineState:_pipelineState];
-
-        [renderEncoder setVertexBuffer:source.displayVertices
-                                offset:0
-                              atIndex:CSRenderVertexInputIndexVertices];
-
-        [renderEncoder setVertexBytes:&_viewportSize
-                               length:sizeof(_viewportSize)
-                              atIndex:CSRenderVertexInputIndexViewportSize];
-
-        [renderEncoder setVertexBytes:&transform
-                               length:sizeof(transform)
-                              atIndex:CSRenderVertexInputIndexTransform];
-
-        [renderEncoder setVertexBytes:&hasAlpha
-                               length:sizeof(hasAlpha)
-                              atIndex:CSRenderVertexInputIndexHasAlpha];
-
-        // Set the texture object.  The CSRenderTextureIndexBaseColor enum value corresponds
-        ///  to the 'colorMap' argument in our 'samplingShader' function because its
-        //   texture attribute qualifier also uses CSRenderTextureIndexBaseColor for its index
-        [renderEncoder setFragmentTexture:source.displayTexture
-                                  atIndex:CSRenderTextureIndexBaseColor];
         
-        [renderEncoder setFragmentSamplerState:_sampler
-                                       atIndex:CSRenderSamplerIndexTexture];
-        
-        [renderEncoder setFragmentBytes:&isInverted
-                                 length:sizeof(isInverted)
-                                atIndex:CSRenderFragmentBufferIndexIsInverted];
-
-        // Draw the vertices of our triangles
-        [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
-                          vertexStart:0
-                          vertexCount:source.displayNumVertices];
+        // Render the screen first
+        if (source.isVisible) {
+            [self renderSource:source withEncoder:renderEncoder atOffset:CGPointZero];
+        }
         
         // Draw cursor
         id<CSRenderSource> cursorSource = source.cursorSource;
         if (cursorSource && cursorSource.isVisible) {
             // Next render the cursor
-            bool hasAlpha = YES;
-            bool isInverted = cursorSource.isInverted;
-            matrix_float4x4 transform = matrix_scale_translate(source.viewportScale,
-                                                               CGPointMake(source.viewportOrigin.x +
-                                                                           cursorSource.viewportOrigin.x,
-                                                                           source.viewportOrigin.y +
-                                                                           cursorSource.viewportOrigin.y));
-            [renderEncoder setVertexBuffer:cursorSource.displayVertices
-                                    offset:0
-                                  atIndex:CSRenderVertexInputIndexVertices];
-            [renderEncoder setVertexBytes:&_viewportSize
-                                   length:sizeof(_viewportSize)
-                                  atIndex:CSRenderVertexInputIndexViewportSize];
-            [renderEncoder setVertexBytes:&transform
-                                 length:sizeof(transform)
-                                atIndex:CSRenderVertexInputIndexTransform];
-            [renderEncoder setVertexBytes:&hasAlpha
-                                 length:sizeof(hasAlpha)
-                                atIndex:CSRenderVertexInputIndexHasAlpha];
-            [renderEncoder setFragmentTexture:cursorSource.displayTexture
-                                      atIndex:CSRenderTextureIndexBaseColor];
-            [renderEncoder setFragmentSamplerState:_sampler
-                                           atIndex:CSRenderSamplerIndexTexture];
-            [renderEncoder setFragmentBytes:&isInverted
-                                     length:sizeof(isInverted)
-                                    atIndex:CSRenderFragmentBufferIndexIsInverted];
-            [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
-                              vertexStart:0
-                              vertexCount:cursorSource.displayNumVertices];
+            [self renderSource:cursorSource withEncoder:renderEncoder atOffset:source.viewportOrigin];
         }
 
         [renderEncoder endEncoding];
@@ -270,6 +252,7 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
         // Release lock after GPU is done
         [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
             // GPU work is complete
+            [cursorSource rendererFrameHasRendered];
             [source rendererFrameHasRendered];
         }];
     }

@@ -49,16 +49,12 @@
 // CSRenderSource properties
 @property (nonatomic, nullable, readwrite) id<MTLTexture> canvasTexture;
 @property (nonatomic, nullable, readwrite) id<MTLTexture> glTexture;
-@property (nonatomic, readwrite) NSUInteger displayNumVertices;
-@property (nonatomic, nullable, readwrite) id<MTLBuffer> displayVertices;
-@property (nonatomic, readwrite) CGPoint viewportOrigin;
-@property (nonatomic, readwrite) CGFloat viewportScale;
+@property (nonatomic, readwrite) NSUInteger numVertices;
+@property (nonatomic, nullable, readwrite) id<MTLBuffer> vertices;
 
 @end
 
-@implementation CSDisplay {
-    id<MTLDevice> _device;
-}
+@implementation CSDisplay
 
 #pragma mark - Display events
 
@@ -200,9 +196,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
 #pragma mark - Properties
 
-- (id<MTLDevice>)device {
-    return _device;
-}
+@synthesize device = _device;
 
 - (void)setDevice:(id<MTLDevice>)device {
     _device = device;
@@ -218,6 +212,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     } else {
         [self rebuildCanvasTexture];
     }
+    self.cursor.device = device;
 }
 
 - (SpiceChannel *)spiceChannel {
@@ -258,7 +253,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     }
 }
 
-- (id<MTLTexture>)displayTexture {
+- (id<MTLTexture>)texture {
     if (self.isGLEnabled) {
         return self.glTexture;
     } else {
@@ -278,6 +273,10 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     return NO; // never inverted
 }
 
+- (BOOL)hasAlpha {
+    return NO; // do not blend alpha
+}
+
 - (id<CSRenderSource>)cursorSource {
     return self.cursor;
 }
@@ -289,6 +288,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     _cursor = cursor;
     if (cursor) {
         cursor.display = self;
+        cursor.device = self.device;
     }
 }
 
@@ -433,12 +433,12 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     };
     
     // Create our vertex buffer, and initialize it with our quadVertices array
-    self.displayVertices = [self.device newBufferWithBytes:quadVertices
-                                                    length:sizeof(quadVertices)
-                                                   options:MTLResourceStorageModeShared];
+    self.vertices = [self.device newBufferWithBytes:quadVertices
+                                             length:sizeof(quadVertices)
+                                            options:MTLResourceStorageModeShared];
 
     // Calculate the number of vertices by dividing the byte length by the size of each vertex
-    self.displayNumVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
+    self.numVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
 }
 
 - (void)drawRegion:(CGRect)rect {

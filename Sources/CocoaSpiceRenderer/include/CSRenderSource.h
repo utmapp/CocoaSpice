@@ -34,15 +34,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// Set by the caller to the Metal device used for rendering
 @property (nonatomic, nullable) id<MTLDevice> device;
 
-/// Contains the texture where the display is rendered to
+/// Contains the texture where the source is rendered to
 /// This property should be queried each time a frame is drawn
-@property (nonatomic, nullable, readonly) id<MTLTexture> displayTexture;
+@property (nonatomic, nullable, readonly) id<MTLTexture> texture;
 
-/// Contains the number of verticies to render `displayTexture` to a rectangle
-@property (nonatomic, readonly) NSUInteger displayNumVertices;
+/// Contains the number of verticies to render `texture` to a rectangle
+@property (nonatomic, readonly) NSUInteger numVertices;
 
-/// Contains the verticies data for the display rectangle
-@property (nonatomic, nullable, readonly) id<MTLBuffer> displayVertices;
+/// Contains the verticies data for the rectangle
+@property (nonatomic, nullable, readonly) id<MTLBuffer> vertices;
+
+/// If true, then alpha channel will be blended
+@property (nonatomic, readonly) BOOL hasAlpha;
 
 /// If true, then the texture should be flipped and reflected
 @property (nonatomic, readonly) BOOL isInverted;

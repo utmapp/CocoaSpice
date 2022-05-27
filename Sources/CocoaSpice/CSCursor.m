@@ -30,9 +30,9 @@
 @property (nonatomic, readwrite) BOOL cursorHidden;
 @property (nonatomic) CGPoint mouseGuest;
 
-@property (nonatomic, nullable, readwrite) id<MTLTexture> displayTexture;
-@property (nonatomic, readwrite) NSUInteger displayNumVertices;
-@property (nonatomic, nullable, readwrite) id<MTLBuffer> displayVertices;
+@property (nonatomic, nullable, readwrite) id<MTLTexture> texture;
+@property (nonatomic, readwrite) NSUInteger numVertices;
+@property (nonatomic, nullable, readwrite) id<MTLBuffer> vertices;
 
 @end
 
@@ -154,6 +154,10 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     return !self.display.isGLEnabled;
 }
 
+- (BOOL)hasAlpha {
+    return YES; // blend alpha
+}
+
 - (id<CSRenderSource>)cursorSource {
     return nil; // no such thing as a cursor for a cursor
 }
@@ -219,7 +223,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
     textureDescriptor.width = size.width;
     textureDescriptor.height = size.height;
-    self.displayTexture = [self.device newTextureWithDescriptor:textureDescriptor];
+    self.texture = [self.device newTextureWithDescriptor:textureDescriptor];
 
     // We flip the y-coordinates because pixman renders flipped
     CSRenderVertex quadVertices[] =
@@ -235,21 +239,21 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     };
 
     // Create our vertex buffer, and initialize it with our quadVertices array
-    self.displayVertices = [self.device newBufferWithBytes:quadVertices
-                                                    length:sizeof(quadVertices)
-                                                   options:MTLResourceStorageModeShared];
+    self.vertices = [self.device newBufferWithBytes:quadVertices
+                                             length:sizeof(quadVertices)
+                                            options:MTLResourceStorageModeShared];
 
     // Calculate the number of vertices by dividing the byte length by the size of each vertex
-    self.displayNumVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
+    self.numVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
     self.cursorSize = size;
     self.cursorHotspot = hotspot;
     self.hasCursor = YES;
 }
 
 - (void)destroyCursor {
-    self.displayNumVertices = 0;
-    self.displayVertices = nil;
-    self.displayTexture = nil;
+    self.numVertices = 0;
+    self.vertices = nil;
+    self.texture = nil;
     self.cursorSize = CGSizeZero;
     self.cursorHotspot = CGPointZero;
     self.hasCursor = NO;
@@ -261,10 +265,10 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
         { 0, 0 }, // MTLOrigin
         { self.cursorSize.width, self.cursorSize.height, 1} // MTLSize
     };
-    [self.displayTexture replaceRegion:region
-                           mipmapLevel:0
-                             withBytes:buffer
-                           bytesPerRow:self.cursorSize.width*pixelSize];
+    [self.texture replaceRegion:region
+                    mipmapLevel:0
+                      withBytes:buffer
+                    bytesPerRow:self.cursorSize.width*pixelSize];
 }
 
 - (void)rendererFrameHasRendered {

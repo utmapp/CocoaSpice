@@ -34,6 +34,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// You can add an observer on this property to detect when the display resolution changes.
 @property (nonatomic, readonly) CGSize displaySize;
 
+/// Set by caller to offset the rendering of the display
+@property (nonatomic, readwrite) CGPoint viewportOrigin;
+
+/// Set by the caller to scale the display
+@property (nonatomic, readwrite) CGFloat viewportScale;
+
 /// This converts the current display state to an image for saving.
 /// Do NOT use this to render the display as it is slow and inefficient.
 @property (nonatomic, readonly) CSScreenshot *screenshot;
