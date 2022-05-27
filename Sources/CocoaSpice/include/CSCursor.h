@@ -39,6 +39,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)init NS_UNAVAILABLE;
 
+/// Set the cursor to a new location (only appliable if client side cursor rendering is in use)
+/// @param point Point relative to the display
+- (void)moveTo:(CGPoint)point NS_SWIFT_NAME(move(to:));
+
 @end
 
 NS_ASSUME_NONNULL_END

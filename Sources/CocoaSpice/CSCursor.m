@@ -275,4 +275,8 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     // do nothing
 }
 
+- (void)moveTo:(CGPoint)point {
+    self.mouseGuest = point;
+}
+
 @end
