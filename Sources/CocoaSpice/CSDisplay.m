@@ -120,14 +120,15 @@ static void cs_update_monitor_area(SpiceChannel *channel, GParamSpec *pspec, gpo
         goto whole;
     
     g_object_get(self.channel, "monitors", &monitors, NULL);
-    for (i = 0; monitors != NULL && i < monitors->len; i++) {
-        cfg = &g_array_index(monitors, SpiceDisplayMonitorConfig, i);
-        if (cfg->id == self.monitorID) {
-            c = cfg;
-            break;
-        }
-    }
-    if (c == NULL) {
+    //for (i = 0; monitors != NULL && i < monitors->len; i++) {
+    //    cfg = &g_array_index(monitors, SpiceDisplayMonitorConfig, i);
+    //    if (cfg->id == self.monitorID) {
+    //        c = cfg;
+    //        break;
+    //    }
+    //}
+    g_assert(monitors->len <= 1);
+    if (monitors->len == 0) {
         SPICE_DEBUG("[CocoaSpice] update monitor: no monitor %d", (int)self.monitorID);
         self.ready = NO;
         if (spice_channel_test_capability(SPICE_CHANNEL(self.channel),
@@ -138,6 +139,7 @@ static void cs_update_monitor_area(SpiceChannel *channel, GParamSpec *pspec, gpo
         }
         goto whole;
     }
+    c = &g_array_index(monitors, SpiceDisplayMonitorConfig, 0);
     
     if (c->surface_id != 0) {
         g_warning("FIXME: only support monitor config with primary surface 0, "
@@ -262,7 +264,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (BOOL)isPrimaryDisplay {
-    return self.channelID == 0 && self.monitorID == 0;
+    return self.monitorID == 0;
 }
 
 - (BOOL)isVisible {
@@ -300,8 +302,8 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         self.canvasLock = dispatch_semaphore_create(1);
         self.viewportScale = 1.0f;
         self.viewportOrigin = CGPointMake(0, 0);
-        self.monitorID = 0; // only support 1 monitor
         self.channel = g_object_ref(channel);
+        self.monitorID = self.channelID;
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         g_signal_connect(channel, "display-primary-create",
                          G_CALLBACK(cs_primary_create), (__bridge void *)self);

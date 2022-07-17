@@ -51,6 +51,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// If a cursor channel is available, this represents the render source for the cursor
 @property (nonatomic, nullable, weak, readonly) CSCursor *cursor;
 
+/// A unique id for each display with 0 being the primary display.
+///
+/// The id starts at 0 up to the number of heads in the first QXL device.
+/// Next, it will increment by 1 for each additional display channel.
+/// Note currently we only support 1 head per QXL device.
+@property (nonatomic, readonly) NSInteger monitorID;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 /// Request a new screen resolution from SPICE guest agent
