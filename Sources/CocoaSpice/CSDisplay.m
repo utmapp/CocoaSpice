@@ -34,6 +34,7 @@
 @property (nonatomic, readwrite) BOOL isGLEnabled;
 @property (nonatomic, readwrite) BOOL hasGLDrawAck;
 @property (nonatomic, nullable, weak, readwrite) CSCursor *cursor;
+@property (nonatomic) BOOL hasInitialConfig;
 
 // Non-GL Canvas
 @property (nonatomic) dispatch_semaphore_t canvasLock;

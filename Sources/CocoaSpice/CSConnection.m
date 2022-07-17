@@ -114,10 +114,13 @@ static void cs_display_monitors(SpiceChannel *channel, GParamSpec *pspec,
     
     SPICE_DEBUG("[CocoaSpice] display %ld now has %d monitors", display.channelID, cfgs->len);
     if (cfgs->len > 0) {
-        if (cfgs->len > 1) {
-            g_warning("[CocoaSpice] the client specified multiple monitors but only the first monitor will be used!");
+        g_assert(cfgs->len == 1);
+        if (display.hasInitialConfig) {
+            [self.delegate spiceDisplayUpdated:self display:display];
+        } else {
+            [self.delegate spiceDisplayCreated:self display:display];
+            display.hasInitialConfig = YES;
         }
-        [self.delegate spiceDisplayCreatedOrUpdated:self display:display];
     } else {
         [self.delegate spiceDisplayDestroyed:self display:display];
     }

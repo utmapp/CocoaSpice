@@ -30,6 +30,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, nullable, weak, readwrite) CSCursor *cursor;
 
+/// Set to true in CSConnection after seeing the first monitor config
+@property (nonatomic) BOOL hasInitialConfig;
+
 /// Create a new display for a given channel and monitor
 /// @param channel Display channel
 /// @param monitorID Monitor in the channel
