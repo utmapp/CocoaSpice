@@ -490,4 +490,18 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     }
 }
 
+- (void)setIsEnabled:(BOOL)isEnabled {
+    if (_isEnabled != isEnabled) {
+        SpiceMainChannel *main = self.spiceMain;
+        if (!main) {
+            SPICE_DEBUG("[CocoaSpice] ignoring display enable change because main channel not found");
+            return;
+        }
+        [CSMain.sharedInstance asyncWith:^{
+            spice_main_channel_update_display_enabled(main, (int)self.monitorID, isEnabled, TRUE);
+            self->_isEnabled = isEnabled;
+        }];
+    }
+}
+
 @end

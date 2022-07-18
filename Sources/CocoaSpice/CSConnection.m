@@ -196,6 +196,7 @@ static void cs_channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data
         [self.mutableChannels addObject:display];
         g_signal_connect_after(channel, "notify::monitors",
                                G_CALLBACK(cs_display_monitors), (__bridge void *)self);
+        display.isEnabled = YES;
         // find and connect to any existing cursor channel
         for (CSChannel *candidate in self.channels) {
             if ([candidate isKindOfClass:CSCursor.class] && candidate.channelID == chid) {

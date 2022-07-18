@@ -58,6 +58,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Note currently we only support 1 head per QXL device.
 @property (nonatomic, readonly) NSInteger monitorID;
 
+/// If false, this display will not be used
+@property (nonatomic) BOOL isEnabled;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 /// Request a new screen resolution from SPICE guest agent
