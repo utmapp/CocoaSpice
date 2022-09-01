@@ -333,14 +333,16 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
 - (void)dealloc {
     SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_primary_create), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_primary_destroy), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_invalidate), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_mark), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_update_monitor_area), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_set_overlay), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_gl_scanout), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_gl_draw), (__bridge void *)self);
+    [CSMain.sharedInstance syncWith:^{
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_primary_create), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_primary_destroy), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_invalidate), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_mark), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_update_monitor_area), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_set_overlay), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_gl_scanout), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_gl_draw), (__bridge void *)self);
+    }];
     g_object_unref(self.channel);
 }
 

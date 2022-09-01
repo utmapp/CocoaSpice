@@ -61,6 +61,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// @param block Block to run
 - (void)asyncWith:(dispatch_block_t)block;
 
+/// Run a block with main context lock held
+/// @param block Block to run
+- (void)syncWith:(dispatch_block_t)block;
+
 @end
 
 NS_ASSUME_NONNULL_END

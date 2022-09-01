@@ -158,4 +158,17 @@ static gboolean callBlockInMainContext(gpointer data) {
     g_main_context_invoke(self.glibMainContext, callBlockInMainContext, data);
 }
 
+- (void)syncWith:(dispatch_block_t)block {
+    if (g_main_context_is_owner(self.glibMainContext)) {
+        block();
+    } else {
+        dispatch_semaphore_t runEvent = dispatch_semaphore_create(0);
+        [self asyncWith:^{
+            block();
+            dispatch_semaphore_signal(runEvent);
+        }];
+        dispatch_semaphore_wait(runEvent, DISPATCH_TIME_FOREVER);
+    }
+}
+
 @end

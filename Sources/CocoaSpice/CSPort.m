@@ -100,9 +100,11 @@ static void cs_port_write_cb(GObject *source_object,
 }
 
 - (void)dealloc {
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_opened), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_data), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_event), (__bridge void *)self);
+    [CSMain.sharedInstance syncWith:^{
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_opened), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_data), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_port_event), (__bridge void *)self);
+    }];
     g_object_unref(self.channel);
 }
 

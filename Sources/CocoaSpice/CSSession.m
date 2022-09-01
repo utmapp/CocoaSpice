@@ -319,8 +319,10 @@ static void cs_channel_destroy(SpiceSession *session, SpiceChannel *channel,
 
 - (void)dealloc {
     SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
-    g_signal_handlers_disconnect_by_func(self.session, G_CALLBACK(cs_channel_new), (__bridge void *)self);
-    g_signal_handlers_disconnect_by_func(self.session, G_CALLBACK(cs_channel_destroy), (__bridge void *)self);
+    [CSMain.sharedInstance syncWith:^{
+        g_signal_handlers_disconnect_by_func(self.session, G_CALLBACK(cs_channel_new), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(self.session, G_CALLBACK(cs_channel_destroy), (__bridge void *)self);
+    }];
     cs_channel_destroy(self.session, SPICE_CHANNEL(self.main), (__bridge void *)self);
     g_object_unref(self.session);
     [[NSNotificationCenter defaultCenter] removeObserver:self
