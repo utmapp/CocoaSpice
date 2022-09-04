@@ -195,13 +195,15 @@ static gboolean cs_call_manager(gpointer user_data)
 }
 
 - (void)dealloc {
+    SpiceUsbDeviceManager *usbDeviceManager = self.usbDeviceManager;
+    gpointer data = (__bridge void *)self;
     [CSMain.sharedInstance syncWith:^{
-        g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_error), (__bridge void *)self);
-        g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_error), (__bridge void *)self);
-        g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_added), (__bridge void *)self);
-        g_signal_handlers_disconnect_by_func(self.usbDeviceManager, G_CALLBACK(cs_device_removed), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(usbDeviceManager, G_CALLBACK(cs_device_error), data);
+        g_signal_handlers_disconnect_by_func(usbDeviceManager, G_CALLBACK(cs_device_error), data);
+        g_signal_handlers_disconnect_by_func(usbDeviceManager, G_CALLBACK(cs_device_added), data);
+        g_signal_handlers_disconnect_by_func(usbDeviceManager, G_CALLBACK(cs_device_removed), data);
     }];
-    g_object_unref(self.usbDeviceManager);
+    g_object_unref(usbDeviceManager);
 }
 
 #pragma mark - Methods

@@ -352,17 +352,19 @@ static void cs_connection_destroy(SpiceSession *session,
 
 - (void)dealloc {
     SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
+    SpiceSession *spiceSession = self.spiceSession;
+    gpointer data = (__bridge void *)self;
     [CSMain.sharedInstance syncWith:^{
-        g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_channel_new), (__bridge void *)self);
-        g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_channel_destroy), (__bridge void *)self);
-        g_signal_handlers_disconnect_by_func(self.spiceSession, G_CALLBACK(cs_connection_destroy), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(spiceSession, G_CALLBACK(cs_channel_new), data);
+        g_signal_handlers_disconnect_by_func(spiceSession, G_CALLBACK(cs_channel_destroy), data);
+        g_signal_handlers_disconnect_by_func(spiceSession, G_CALLBACK(cs_connection_destroy), data);
     }];
     for (NSInteger i = self.channels.count-1; i >= 0; i--) {
         CSChannel* wrap = self.channels[i];
-        cs_channel_destroy(self.spiceSession, wrap.spiceChannel, (__bridge void *)self);
+        cs_channel_destroy(spiceSession, wrap.spiceChannel, data);
     }
-    cs_channel_destroy(self.spiceSession, SPICE_CHANNEL(self.spiceMain), (__bridge void *)self);
-    g_object_unref(self.spiceSession);
+    cs_channel_destroy(spiceSession, SPICE_CHANNEL(self.spiceMain), data);
+    g_object_unref(spiceSession);
 }
 
 - (void)finishInit {

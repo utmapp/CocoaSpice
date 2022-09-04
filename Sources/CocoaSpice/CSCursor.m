@@ -203,13 +203,15 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
 }
 
 - (void)dealloc {
+    SpiceCursorChannel *channel = self.channel;
+    gpointer data = (__bridge void *)self;
     [CSMain.sharedInstance syncWith:^{
-        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_cursor_set), (__bridge void *)self);
-        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_cursor_move), (__bridge void *)self);
-        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_cursor_hide), (__bridge void *)self);
-        g_signal_handlers_disconnect_by_func(self.channel, G_CALLBACK(cs_cursor_reset), (__bridge void *)self);
+        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_set), data);
+        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_move), data);
+        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_hide), data);
+        g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_reset), data);
     }];
-    g_object_unref(self.channel);
+    g_object_unref(channel);
 }
 
 #pragma mark - Cursor drawing
