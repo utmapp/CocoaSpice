@@ -32,7 +32,7 @@
 @property (nonatomic, readwrite) NSInteger monitorID;
 @property (nonatomic, nullable) SpiceDisplayChannel *channel;
 @property (nonatomic, readwrite) BOOL isGLEnabled;
-@property (nonatomic, readwrite) BOOL hasGLDrawAck;
+@property (nonatomic, readwrite) BOOL hasDrawOutstanding;
 @property (nonatomic, nullable, weak, readwrite) CSCursor *cursor;
 @property (nonatomic) BOOL hasInitialConfig;
 
@@ -180,7 +180,6 @@ static void cs_gl_scanout(SpiceDisplayChannel *channel, GParamSpec *pspec, gpoin
     g_return_if_fail(scanout != NULL);
     
     self.isGLEnabled = YES;
-    self.hasGLDrawAck = YES;
 
     [self rebuildScanoutTextureWithScanout:*scanout];
 }
@@ -194,7 +193,10 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     SPICE_DEBUG("[CocoaSpice] %s",  __FUNCTION__);
 
     self.isGLEnabled = YES;
-    self.hasGLDrawAck = NO;
+    [CSMain.sharedInstance asyncWith:^{
+        // done inside block to avoid race with frame completed handler
+        self.hasDrawOutstanding = YES;
+    }];
 }
 
 #pragma mark - Properties
@@ -486,11 +488,15 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
 - (void)rendererFrameHasRendered {
     SpiceDisplayChannel *display = self.channel;
-    if (display && self.isGLEnabled && !self.hasGLDrawAck) {
+    if (display && self.isGLEnabled && self.hasDrawOutstanding) {
         [CSMain.sharedInstance asyncWith:^{
-            spice_display_channel_gl_draw_done(display);
+            // recheck to avoid race condition, outer if is just an optimization
+            if (self.hasDrawOutstanding) {
+                spice_display_channel_gl_draw_done(display);
+                // done inside the block to avoid race with a new gl_draw event
+                self.hasDrawOutstanding = NO;
+            }
         }];
-        self.hasGLDrawAck = YES;
     }
 }
 
