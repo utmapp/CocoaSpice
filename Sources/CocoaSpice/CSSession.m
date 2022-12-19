@@ -161,7 +161,7 @@ static void cs_clipboard_got_from_guest(SpiceMainChannel *main, guint selection,
 
     SPICE_DEBUG("clipboard got data");
     
-    if (type == VD_AGENT_CLIPBOARD_UTF8_TEXT) {
+    if (type == VD_AGENT_CLIPBOARD_UTF8_TEXT && size > 0) {
         gchar *conv = NULL;
         /* on windows, gtk+ would already convert to LF endings, but
            not on unix */
@@ -172,6 +172,8 @@ static void cs_clipboard_got_from_guest(SpiceMainChannel *main, guint selection,
         NSString *string = [NSString stringWithUTF8String:(conv ? conv : (const char *)data)];
         [self.pasteboardDelegate setString:string];
         g_free(conv);
+    } else if (type == VD_AGENT_CLIPBOARD_UTF8_TEXT) {
+        [self.pasteboardDelegate setString:@""];
     } else {
         CSPasteboardType cspbType = cspbTypeForClipboardType(type);
         NSData *pasteData = [NSData dataWithBytes:data length:size];
