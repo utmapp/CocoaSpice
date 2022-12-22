@@ -19,6 +19,7 @@
 
 #import "CSRenderer.h"
 #import "CSRenderSource.h"
+#import "CSRenderSourceDelegate.h"
 
 // Header shared between C code here, which executes Metal API commands, and .metal files, which
 //   uses these types as inputs to the shaders
@@ -41,10 +42,17 @@
     
     // Sampler object
     id<MTLSamplerState> _sampler;
+    
+    // flag toggle for invalidate
+    BOOL _isViewInvalidated;
+    
+    // callback for invalidate
+    void (^_invalidateBlock)(void);
 }
 
 - (void)setSource:(id<CSRenderSource>)source {
     source.device = _device;
+    source.rendererDelegate = self;
     _source = source;
 }
 
@@ -106,6 +114,16 @@
         
         // Sampler
         [self changeUpscaler:MTLSamplerMinMagFilterLinear downscaler:MTLSamplerMinMagFilterLinear];
+        
+        // Set up for explicit drawing
+        mtkView.paused = YES;
+        mtkView.enableSetNeedsDisplay = NO;
+        __weak typeof(mtkView) weakMtkView = mtkView;
+        _invalidateBlock = ^{
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [weakMtkView draw];
+            });
+        };
     }
 
     return self;
@@ -213,53 +231,74 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
 {
     id<CSRenderSource> source = self.source;
     if (view.hidden || !source) {
+        _isViewInvalidated = NO;
         return;
     }
+    
+    dispatch_async(source.rendererQueue, ^{
+        @autoreleasepool {
+            [self drawInMTKView:view serializedWithSource:source];
+        }
+    });
+}
 
+- (void)drawInMTKView:(nonnull MTKView *)view serializedWithSource:(id<CSRenderSource>)source {
+    id<CSRenderSource> cursorSource = source.cursorSource;
+    
     // Create a new command buffer for each render pass to the current drawable
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
     commandBuffer.label = @"MyCommand";
 
     // Obtain a renderPassDescriptor generated from the view's drawable textures
     MTLRenderPassDescriptor *renderPassDescriptor = view.currentRenderPassDescriptor;
+    id<MTLDrawable> currentDrawable = view.currentDrawable;
 
-    if(renderPassDescriptor != nil)
+    if (renderPassDescriptor == nil || currentDrawable == nil)
     {
-        // Create a render command encoder so we can render into something
-        id<MTLRenderCommandEncoder> renderEncoder =
-        [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-        renderEncoder.label = @"MyRenderEncoder";
-        
-        [renderEncoder setRenderPipelineState:_pipelineState];
-        
-        // Render the screen first
-        if (source.isVisible) {
-            [self renderSource:source withEncoder:renderEncoder atOffset:CGPointZero];
-        }
-        
-        // Draw cursor
-        id<CSRenderSource> cursorSource = source.cursorSource;
-        if (cursorSource && cursorSource.isVisible) {
-            // Next render the cursor
-            [self renderSource:cursorSource withEncoder:renderEncoder atOffset:source.viewportOrigin];
-        }
-
-        [renderEncoder endEncoding];
-        
-        // Schedule a present once the framebuffer is complete using the current drawable
-        [commandBuffer presentDrawable:view.currentDrawable];
-        
-        // Release lock after GPU is done
-        [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
-            // GPU work is complete
-            [cursorSource rendererFrameHasRendered];
-            [source rendererFrameHasRendered];
-        }];
+        _isViewInvalidated = NO;
+        return;
+    }
+    
+    // Create a render command encoder so we can render into something
+    id<MTLRenderCommandEncoder> renderEncoder =
+    [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+    renderEncoder.label = @"MyRenderEncoder";
+    
+    [renderEncoder setRenderPipelineState:_pipelineState];
+    
+    // Render the screen first
+    if (source.isVisible) {
+        [self renderSource:source withEncoder:renderEncoder atOffset:CGPointZero];
+    }
+    
+    // Draw cursor
+    if (cursorSource && cursorSource.isVisible) {
+        // Next render the cursor
+        [self renderSource:cursorSource withEncoder:renderEncoder atOffset:source.viewportOrigin];
     }
 
+    [renderEncoder endEncoding];
+    
+    // Schedule a present once the framebuffer is complete using the current drawable
+    [commandBuffer presentDrawable:currentDrawable];
 
     // Finalize rendering here & push the command buffer to the GPU
     [commandBuffer commit];
+    
+    // block renderering queue until completed
+    [commandBuffer waitUntilCompleted];
+    
+    // GPU work is complete
+    [cursorSource rendererFrameHasRendered];
+    [source rendererFrameHasRendered];
+    _isViewInvalidated = NO;
+}
+
+- (void)renderSourceDidInvalidate:(id<CSRenderSource>)renderSource {
+    if (!_isViewInvalidated) {
+        _isViewInvalidated = YES;
+        _invalidateBlock();
+    }
 }
 
 @end

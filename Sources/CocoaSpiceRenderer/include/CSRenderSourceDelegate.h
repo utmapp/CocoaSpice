@@ -14,28 +14,17 @@
 // limitations under the License.
 //
 
-@import MetalKit;
-@import CoreGraphics;
+#import <Foundation/Foundation.h>
 
 @protocol CSRenderSource;
-@protocol CSRenderSourceDelegate;
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// Simple platform independent renderer for CocoaSpice
-@interface CSRenderer : NSObject<MTKViewDelegate, CSRenderSourceDelegate>
+@protocol CSRenderSourceDelegate <NSObject>
 
-/// Render source (comes from `CSDisplay`)
-@property (nonatomic, weak, nullable) id<CSRenderSource> source;
-
-/// Create a new renderer for a MTKView
-/// @param mtkView The MetalKit View
-- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView;
-
-/// Modify upscaler and downscaler settings
-/// @param upscaler Upscaler to use
-/// @param downscaler Downscaler to use
-- (void)changeUpscaler:(MTLSamplerMinMagFilter)upscaler downscaler:(MTLSamplerMinMagFilter)downscaler;
+/// Called by the render source to indicate that the source should be re-drawn
+/// - Parameter renderSource: Render source that is invalidated
+- (void)renderSourceDidInvalidate:(id<CSRenderSource>)renderSource;
 
 @end
 

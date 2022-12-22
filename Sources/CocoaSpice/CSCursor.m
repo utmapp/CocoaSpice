@@ -42,7 +42,7 @@
 
 static void cs_cursor_invalidate(CSCursor *self)
 {
-    // We implement two different textures so invalidate is not needed
+    [self.rendererDelegate renderSourceDidInvalidate:self];
 }
 
 static void cs_cursor_set(SpiceCursorChannel *channel,
@@ -60,33 +60,32 @@ static void cs_cursor_set(SpiceCursorChannel *channel,
         return;
     }
     
-    cs_cursor_invalidate(self);
-    
     CGPoint hotspot = CGPointMake(cursor_shape->hot_spot_x, cursor_shape->hot_spot_y);
     CGSize newSize = CGSizeMake(cursor_shape->width, cursor_shape->height);
     if (!CGSizeEqualToSize(newSize, self.cursorSize) || !CGPointEqualToPoint(hotspot, self.cursorHotspot)) {
         [self rebuildCursorWithSize:newSize center:hotspot];
     }
     [self drawCursor:cursor_shape->data];
+    dispatch_async(self.rendererQueue, ^{
+        // this has to be after drawCursor: which runs in the same serial queue
+        g_boxed_free(SPICE_TYPE_CURSOR_SHAPE, cursor_shape);
+    });
     self.cursorHidden = NO;
     cs_cursor_invalidate(self);
-    g_boxed_free(SPICE_TYPE_CURSOR_SHAPE, cursor_shape);
 }
 
 static void cs_cursor_move(SpiceCursorChannel *channel, gint x, gint y, gpointer data)
 {
     CSCursor *self = (__bridge CSCursor *)data;
     
-    cs_cursor_invalidate(self); // old pointer buffer
-    
     self.mouseGuest = CGPointMake(x, y);
-    
-    cs_cursor_invalidate(self); // new pointer buffer
     
     /* apparently we have to restore cursor when "cursor_move" */
     if (self.hasCursor) {
         self.cursorHidden = NO;
     }
+    
+    cs_cursor_invalidate(self);
 }
 
 static void cs_cursor_hide(SpiceCursorChannel *channel, gpointer data)
@@ -123,8 +122,6 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
 
 #pragma mark - Properties
 
-@synthesize device = _device;
-
 - (SpiceChannel *)spiceChannel {
     return SPICE_CHANNEL(self.channel);
 }
@@ -141,9 +138,29 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     }
 }
 
-- (void)setDevice:(id<MTLDevice>)device {
-    _device = device;
+- (void)setDisplay:(CSDisplay *)display {
+    _display = display;
     cs_cursor_set(self.channel, NULL, (__bridge void *)self);
+}
+
+- (void)setDevice:(id<MTLDevice>)device {
+    @throw [NSException exceptionWithName:NSInvalidArgumentException reason:@"setDevice: is unavailable on an CSCursor instance. Please set the device and cursor property on CSDisplay." userInfo:nil];
+}
+
+- (id<MTLDevice>)device {
+    return self.display.device;
+}
+
+- (dispatch_queue_t)rendererQueue {
+    return CSMain.sharedInstance.rendererQueue;
+}
+
+- (id<CSRenderSourceDelegate>)rendererDelegate {
+    return self.display.rendererDelegate;
+}
+
+- (void)setRendererDelegate:(id<CSRenderSourceDelegate>)rendererDelegate {
+    @throw [NSException exceptionWithName:NSInvalidArgumentException reason:@"setRendererDelegate: is unavailable on an CSCursor instance. Please set the rendererDelegate and cursor property on CSDisplay." userInfo:nil];
 }
 
 - (BOOL)isVisible {
@@ -227,52 +244,63 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
     textureDescriptor.width = size.width;
     textureDescriptor.height = size.height;
-    self.texture = [self.device newTextureWithDescriptor:textureDescriptor];
-
-    // We flip the y-coordinates because pixman renders flipped
-    CSRenderVertex quadVertices[] =
-    {
-     // Pixel positions, Texture coordinates
-     { { -hotspot.x + size.width, hotspot.y               },  { 1.f, 0.f } },
-     { { -hotspot.x             , hotspot.y               },  { 0.f, 0.f } },
-     { { -hotspot.x             , hotspot.y - size.height },  { 0.f, 1.f } },
-     
-     { { -hotspot.x + size.width, hotspot.y               },  { 1.f, 0.f } },
-     { { -hotspot.x             , hotspot.y - size.height },  { 0.f, 1.f } },
-     { { -hotspot.x + size.width, hotspot.y - size.height },  { 1.f, 1.f } },
-    };
-
-    // Create our vertex buffer, and initialize it with our quadVertices array
-    self.vertices = [self.device newBufferWithBytes:quadVertices
-                                             length:sizeof(quadVertices)
-                                            options:MTLResourceStorageModeShared];
-
-    // Calculate the number of vertices by dividing the byte length by the size of each vertex
-    self.numVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
-    self.cursorSize = size;
-    self.cursorHotspot = hotspot;
-    self.hasCursor = YES;
+    textureDescriptor.usage = MTLTextureUsageShaderRead;
+    dispatch_async(self.rendererQueue, ^{
+        self.texture = [self.device newTextureWithDescriptor:textureDescriptor];
+        
+        // We flip the y-coordinates because pixman renders flipped
+        CSRenderVertex quadVertices[] =
+        {
+            // Pixel positions, Texture coordinates
+            { { -hotspot.x + size.width, hotspot.y               },  { 1.f, 0.f } },
+            { { -hotspot.x             , hotspot.y               },  { 0.f, 0.f } },
+            { { -hotspot.x             , hotspot.y - size.height },  { 0.f, 1.f } },
+            
+            { { -hotspot.x + size.width, hotspot.y               },  { 1.f, 0.f } },
+            { { -hotspot.x             , hotspot.y - size.height },  { 0.f, 1.f } },
+            { { -hotspot.x + size.width, hotspot.y - size.height },  { 1.f, 1.f } },
+        };
+        
+        // Create our vertex buffer, and initialize it with our quadVertices array
+        self.vertices = [self.device newBufferWithBytes:quadVertices
+                                                 length:sizeof(quadVertices)
+                                                options:MTLResourceStorageModeShared];
+        
+        // Calculate the number of vertices by dividing the byte length by the size of each vertex
+        self.numVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
+        self.cursorSize = size;
+        self.cursorHotspot = hotspot;
+        self.hasCursor = YES;
+    });
 }
 
 - (void)destroyCursor {
-    self.numVertices = 0;
-    self.vertices = nil;
-    self.texture = nil;
-    self.cursorSize = CGSizeZero;
-    self.cursorHotspot = CGPointZero;
-    self.hasCursor = NO;
+    dispatch_async(self.rendererQueue, ^{
+        self.numVertices = 0;
+        self.vertices = nil;
+        self.texture = nil;
+        self.cursorSize = CGSizeZero;
+        self.cursorHotspot = CGPointZero;
+        self.hasCursor = NO;
+    });
 }
 
 - (void)drawCursor:(const void *)buffer {
-    const NSInteger pixelSize = 4;
-    MTLRegion region = {
-        { 0, 0 }, // MTLOrigin
-        { self.cursorSize.width, self.cursorSize.height, 1} // MTLSize
-    };
-    [self.texture replaceRegion:region
-                    mipmapLevel:0
-                      withBytes:buffer
-                    bytesPerRow:self.cursorSize.width*pixelSize];
+    dispatch_async(self.rendererQueue, ^{
+        CGSize cursorSize = self.cursorSize;
+        if (CGSizeEqualToSize(cursorSize, CGSizeZero)) {
+            return;
+        }
+        const NSInteger pixelSize = 4;
+        MTLRegion region = {
+            { 0, 0 }, // MTLOrigin
+            { cursorSize.width, cursorSize.height, 1} // MTLSize
+        };
+        [self.texture replaceRegion:region
+                        mipmapLevel:0
+                          withBytes:buffer
+                        bytesPerRow:cursorSize.width*pixelSize];
+    });
 }
 
 - (void)rendererFrameHasRendered {
@@ -281,6 +309,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
 
 - (void)moveTo:(CGPoint)point {
     self.mouseGuest = point;
+    [self.rendererDelegate renderSourceDidInvalidate:self];
 }
 
 @end

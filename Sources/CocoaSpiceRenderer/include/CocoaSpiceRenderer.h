@@ -19,6 +19,7 @@
 
 #include "CSRenderer.h"
 #include "CSRenderSource.h"
+#include "CSRenderSourceDelegate.h"
 #include "CSShaderTypes.h"
 
 #endif /* CocoaSpiceRenderer_h */

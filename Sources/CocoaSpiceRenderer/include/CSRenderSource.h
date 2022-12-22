@@ -17,9 +17,11 @@
 #import <Foundation/Foundation.h>
 @import MetalKit;
 
+@protocol CSRenderSourceDelegate;
+
 NS_ASSUME_NONNULL_BEGIN
 
-/// Shared context between renderer and CocoaSpice
+/// Shared context between renderer and CocoaSpice.
 @protocol CSRenderSource <NSObject>
 
 /// If true, this source should be rendered
@@ -36,12 +38,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Contains the texture where the source is rendered to
 /// This property should be queried each time a frame is drawn
+/// All access MUST be through the `rendererQueue`!
 @property (nonatomic, nullable, readonly) id<MTLTexture> texture;
 
 /// Contains the number of verticies to render `texture` to a rectangle
+/// All access MUST be through the `rendererQueue`!
 @property (nonatomic, readonly) NSUInteger numVertices;
 
 /// Contains the verticies data for the rectangle
+/// All access MUST be through the `rendererQueue`!
 @property (nonatomic, nullable, readonly) id<MTLBuffer> vertices;
 
 /// If true, then alpha channel will be blended
@@ -52,6 +57,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Render a cursor overlaid onto this source
 @property (nonatomic, readonly, weak) id<CSRenderSource> cursorSource;
+
+/// Queue for accessing properties in this renderer. Failure to do so could result in crashes.
+@property (nonatomic, readonly) dispatch_queue_t rendererQueue;
+
+/// Set to the renderer to handle events from the renderer source
+@property (nonatomic, weak) id<CSRenderSourceDelegate> rendererDelegate;
 
 /// Callback made by the renderer to indicate that a single frame has been rendered
 - (void)rendererFrameHasRendered;

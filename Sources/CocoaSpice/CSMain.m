@@ -32,6 +32,8 @@
     GMainLoop *_main_loop;
 }
 
+@synthesize rendererQueue = _rendererQueue;
+
 static void logHandler(const gchar *log_domain, GLogLevelFlags log_level,
                        const gchar *message, gpointer user_data)
 {
@@ -102,6 +104,7 @@ void *spice_main_loop(void *args) {
             g_main_context_unref(_main_context);
             return nil;
         }
+        _rendererQueue = dispatch_queue_create("CocoaSpice Renderer Queue", DISPATCH_QUEUE_SERIAL);
     }
     return self;
 }
