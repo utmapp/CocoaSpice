@@ -25,6 +25,9 @@
 #import <spice-client.h>
 #import <spice/protocol.h>
 #import <IOSurface/IOSurfaceRef.h>
+#import <mach/vm_page_size.h>
+
+typedef void (^blitCommandCallback_t)(id<MTLBlitCommandEncoder>);
 
 @interface CSDisplay ()
 
@@ -43,6 +46,8 @@
 @property (nonatomic) gint canvasStride;
 @property (nonatomic, nullable) const void *canvasData;
 @property (nonatomic) CGRect canvasArea;
+@property (nonatomic) id<MTLBuffer> canvasBuffer;
+@property (nonatomic, nonnull) NSMutableArray<blitCommandCallback_t> *canvasBlitQueue;
 
 // Other Drawing
 @property (nonatomic) CGRect visibleArea;
@@ -85,6 +90,7 @@ static void cs_primary_destroy(SpiceDisplayChannel *channel, gpointer data) {
         self.canvasFormat = 0;
         self.canvasStride = 0;
         self.canvasData = NULL;
+        [self.canvasBlitQueue removeAllObjects];
     });
 }
 
@@ -323,6 +329,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         self.viewportOrigin = CGPointMake(0, 0);
         self.channel = g_object_ref(channel);
         self.monitorID = self.channelID;
+        self.canvasBlitQueue = [NSMutableArray array];
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         g_signal_connect(channel, "display-primary-create",
                          G_CALLBACK(cs_primary_create), (__bridge void *)self);
@@ -444,7 +451,23 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         textureDescriptor.width = visibleArea.size.width;
         textureDescriptor.height = visibleArea.size.height;
         textureDescriptor.usage = MTLTextureUsageShaderRead;
+        textureDescriptor.storageMode = MTLStorageModePrivate;
         self.canvasTexture = [self.device newTextureWithDescriptor:textureDescriptor];
+        const void *canvasData = self.canvasData;
+        gint canvasSize = self.canvasStride * self.canvasArea.size.height;
+        if (!canvasData || !canvasSize) {
+            return; // it will be freed
+        }
+        // round size up to multiple of page size
+        canvasSize = mach_vm_round_page(canvasSize);
+        self.canvasBuffer = [self.device newBufferWithBytesNoCopy:(void *)canvasData
+                                                           length:canvasSize
+#if TARGET_OS_OSX
+                                                          options:MTLResourceStorageModeManaged
+#else
+                                                          options:MTLResourceCPUCacheModeWriteCombined
+#endif
+                                                      deallocator:nil];
     });
     [self drawRegion:visibleArea];
 }
@@ -480,18 +503,36 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
 - (void)drawRegion:(CGRect)rect {
     dispatch_async(self.rendererQueue, ^{
+        if (!self.canvasData || !self.canvasBuffer) {
+            return; // not ready to draw yet
+        }
         NSInteger pixelSize = (self.canvasFormat == SPICE_SURFACE_FMT_32_xRGB) ? 4 : 2;
         // create draw region
         MTLRegion region = {
             { rect.origin.x-self.visibleArea.origin.x, rect.origin.y-self.visibleArea.origin.y, 0 }, // MTLOrigin
             { rect.size.width, rect.size.height, 1} // MTLSize
         };
-        if (self.canvasData) {
-            [self.canvasTexture  replaceRegion:region
-                                   mipmapLevel:0
-                                     withBytes:(const char *)self.canvasData + (NSUInteger)(rect.origin.y*self.canvasStride + rect.origin.x*pixelSize)
-                                   bytesPerRow:self.canvasStride];
+        NSUInteger offset = (NSUInteger)(rect.origin.y*self.canvasStride + rect.origin.x*pixelSize);
+        NSUInteger totalBytes = rect.size.width*rect.size.height*pixelSize;
+        blitCommandCallback_t callback = ^(id<MTLBlitCommandEncoder> commandEncoder) {
+            [commandEncoder copyFromBuffer:self.canvasBuffer
+                              sourceOffset:offset
+                         sourceBytesPerRow:self.canvasStride
+                       sourceBytesPerImage:0
+                                sourceSize:region.size
+                                 toTexture:self.canvasTexture
+                          destinationSlice:0
+                          destinationLevel:0
+                         destinationOrigin:region.origin];
+        };
+        // TODO: discard any newly invalid callbacks
+        [self.canvasBlitQueue addObject:callback];
+#if TARGET_OS_OSX
+        for (NSUInteger i = 0; i < rect.size.height; i++) {
+            [self.canvasBuffer didModifyRange:NSMakeRange(offset+i*self.canvasStride,
+                                                          rect.size.width*pixelSize)];
         }
+#endif
     });
 }
 
@@ -512,6 +553,14 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                                           TRUE);
         spice_main_channel_send_monitor_config(main);
     }];
+}
+
+- (void)rendererUpdateTextureWithBlitCommandEncoder:(id<MTLBlitCommandEncoder>)blitCommandEncoder {
+    // should already be running in rendererQueue!
+    for (blitCommandCallback_t callback in self.canvasBlitQueue) {
+        callback(blitCommandEncoder);
+    }
+    [self.canvasBlitQueue removeAllObjects];
 }
 
 - (void)rendererFrameHasRendered {

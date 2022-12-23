@@ -303,6 +303,10 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     });
 }
 
+- (void)rendererUpdateTextureWithBlitCommandEncoder:(id<MTLBlitCommandEncoder>)blitCommandEncoder {
+    // do nothing
+}
+
 - (void)rendererFrameHasRendered {
     // do nothing
 }

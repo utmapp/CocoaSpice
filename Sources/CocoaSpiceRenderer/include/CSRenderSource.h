@@ -64,6 +64,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Set to the renderer to handle events from the renderer source
 @property (nonatomic, weak) id<CSRenderSourceDelegate> rendererDelegate;
 
+/// Callback made by the renderer during the draw phase in the `rendererQueue` context
+///
+/// This allows the renderer source to perform any buffer/texture copy before the render starts.
+/// - Parameter blitCommandEncoder: Encoder to perform blit commands
+- (void)rendererUpdateTextureWithBlitCommandEncoder:(id<MTLBlitCommandEncoder>)blitCommandEncoder;
+
 /// Callback made by the renderer to indicate that a single frame has been rendered
 - (void)rendererFrameHasRendered;
 
