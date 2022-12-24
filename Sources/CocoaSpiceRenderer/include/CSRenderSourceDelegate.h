@@ -26,6 +26,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter renderSource: Render source that is invalidated
 - (void)renderSourceDidInvalidate:(id<CSRenderSource>)renderSource;
 
+/// Called by the render source to request manual draw mode
+///
+/// In manual draw mode, rendering will only be done when invalidated. Otherwise, it will be done on a timer.
+/// - Parameters:
+///   - renderSource: Render source that requested the change
+///   - manualDrawing: Should manual drawing be done?
+- (void)renderSource:(id<CSRenderSource>)renderSource didChangeModeToManualDrawing:(BOOL)manualDrawing;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -25,6 +25,14 @@
 //   uses these types as inputs to the shaders
 #import "CSShaderTypes.h"
 
+@interface CSRenderer ()
+
+@property (nonatomic, weak) MTKView *mtkView;
+@property (nonatomic) BOOL isManualDrawing;
+@property (nonatomic) BOOL isViewInvalidated;
+
+@end
+
 // Main class performing the rendering
 @implementation CSRenderer
 {
@@ -42,18 +50,26 @@
     
     // Sampler object
     id<MTLSamplerState> _sampler;
-    
-    // flag toggle for invalidate
-    BOOL _isViewInvalidated;
-    
-    // callback for invalidate
-    void (^_invalidateBlock)(void);
 }
 
 - (void)setSource:(id<CSRenderSource>)source {
     source.device = _device;
     source.rendererDelegate = self;
     _source = source;
+}
+
+- (void)setMtkView:(MTKView *)mtkView {
+    if (_mtkView != mtkView) {
+        _mtkView = mtkView;
+        [self _updateMTKViewDrawMode];
+    }
+}
+
+- (void)setIsManualDrawing:(BOOL)isManualDrawing {
+    if (_isManualDrawing != isManualDrawing) {
+        _isManualDrawing = isManualDrawing;
+        [self _updateMTKViewDrawMode];
+    }
 }
 
 /// Initialize with the MetalKit view from which we'll obtain our Metal device
@@ -115,15 +131,8 @@
         // Sampler
         [self changeUpscaler:MTLSamplerMinMagFilterLinear downscaler:MTLSamplerMinMagFilterLinear];
         
-        // Set up for explicit drawing
-        mtkView.paused = YES;
-        mtkView.enableSetNeedsDisplay = NO;
-        __weak typeof(mtkView) weakMtkView = mtkView;
-        _invalidateBlock = ^{
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [weakMtkView draw];
-            });
-        };
+        // save weak reference to view
+        _mtkView = mtkView;
     }
 
     return self;
@@ -312,9 +321,37 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
 }
 
 - (void)renderSourceDidInvalidate:(id<CSRenderSource>)renderSource {
-    if (!_isViewInvalidated) {
-        _isViewInvalidated = YES;
-        _invalidateBlock();
+    if (!self.isViewInvalidated && self.isManualDrawing) {
+        // this combines many invalidate calls
+        self.isViewInvalidated = YES;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            MTKView *view = self.mtkView;
+            if (view) {
+                [self.mtkView draw];
+            } else {
+                // do not block next draw
+                self.isViewInvalidated = NO;
+            }
+        });
+    }
+}
+
+- (void)renderSource:(id<CSRenderSource>)renderSource didChangeModeToManualDrawing:(BOOL)manualDrawing {
+    self.isManualDrawing = manualDrawing;
+    self.isViewInvalidated = NO;
+}
+
+- (void)_updateMTKViewDrawMode {
+    MTKView *view = self.mtkView;
+    if (!view) {
+        return;
+    }
+    if (self.isManualDrawing) {
+        view.paused = YES;
+        view.enableSetNeedsDisplay = NO;
+    } else {
+        view.paused = NO;
+        view.enableSetNeedsDisplay = NO;
     }
 }
 

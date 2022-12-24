@@ -320,6 +320,22 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     return CSMain.sharedInstance.rendererQueue;
 }
 
+- (void)setRendererDelegate:(id<CSRenderSourceDelegate>)rendererDelegate {
+    if (_rendererDelegate != rendererDelegate) {
+        _rendererDelegate = rendererDelegate;
+        [rendererDelegate renderSource:self didChangeModeToManualDrawing:self.isGLEnabled];
+    }
+}
+
+- (void)setIsGLEnabled:(BOOL)isGLEnabled {
+    if (_isGLEnabled != isGLEnabled) {
+        _isGLEnabled = isGLEnabled;
+        SPICE_DEBUG("[CocoaSpice] Switching render mode to manual:%d", isGLEnabled);
+        // switch to manual drawing mode for GL updates
+        [self.rendererDelegate renderSource:self didChangeModeToManualDrawing:isGLEnabled];
+    }
+}
+
 #pragma mark - Methods
 
 - (instancetype)initWithChannel:(SpiceDisplayChannel *)channel {
