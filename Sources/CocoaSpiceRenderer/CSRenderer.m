@@ -72,6 +72,13 @@
     }
 }
 
+- (void)setPreferredFramesPerSecond:(NSInteger)preferredFramesPerSecond {
+    if (_preferredFramesPerSecond != preferredFramesPerSecond) {
+        _preferredFramesPerSecond = preferredFramesPerSecond;
+        [self _updateMTKViewDrawMode];
+    }
+}
+
 /// Initialize with the MetalKit view from which we'll obtain our Metal device
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView
 {
@@ -303,7 +310,15 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     [renderEncoder endEncoding];
     
     // Schedule a present once the framebuffer is complete using the current drawable
-    [commandBuffer presentDrawable:currentDrawable];
+    if (@available(macOS 10.15.4, *)) {
+        if (self.preferredFramesPerSecond > 0) {
+            [commandBuffer presentDrawable:currentDrawable afterMinimumDuration:1.0f/self.preferredFramesPerSecond];
+        } else {
+            [commandBuffer presentDrawable:currentDrawable];
+        }
+    } else {
+        [commandBuffer presentDrawable:currentDrawable];
+    }
     
     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
         // GPU work is complete
@@ -352,6 +367,11 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     } else {
         view.paused = NO;
         view.enableSetNeedsDisplay = NO;
+        if (@available(macOS 10.15.4, *)) {
+            if (self.preferredFramesPerSecond > 0) {
+                view.preferredFramesPerSecond = self.preferredFramesPerSecond;
+            }
+        }
     }
 }
 

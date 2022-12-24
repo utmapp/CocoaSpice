@@ -28,6 +28,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// Render source (comes from `CSDisplay`)
 @property (nonatomic, weak, nullable) id<CSRenderSource> source;
 
+/// Attempt to draw at the FPS
+/// If in manual draw mode, a 0 indicates no frame pacing and any other number will attempt to align rendering to it
+/// If in automatic draw mode, a 0 is ignored and any other number will set the timer for draw intervals
+@property (nonatomic) NSInteger preferredFramesPerSecond API_AVAILABLE(macos(10.15.4), ios(10.3), macCatalyst(13.4));
+
 /// Create a new renderer for a MTKView
 /// @param mtkView The MetalKit View
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView;
