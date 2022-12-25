@@ -42,7 +42,7 @@
 
 static void cs_cursor_invalidate(CSCursor *self)
 {
-    [self.rendererDelegate renderSourceDidInvalidate:self];
+    [self.rendererDelegate renderSource:self shouldDrawWithCompletion:nil];
 }
 
 static void cs_cursor_set(SpiceCursorChannel *channel,
@@ -317,7 +317,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
 
 - (void)moveTo:(CGPoint)point {
     self.mouseGuest = point;
-    [self.rendererDelegate renderSourceDidInvalidate:self];
+    [self.rendererDelegate renderSource:self shouldDrawWithCompletion:nil];
 }
 
 @end

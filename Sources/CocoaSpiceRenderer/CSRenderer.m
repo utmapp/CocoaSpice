@@ -30,6 +30,7 @@
 @property (nonatomic, weak) MTKView *mtkView;
 @property (nonatomic) BOOL isManualDrawing;
 @property (nonatomic) BOOL isViewInvalidated;
+@property (nonatomic, nullable) drawCompletionCallback_t onDrawCompletion;
 
 @end
 
@@ -245,20 +246,27 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
 /// Called whenever the view needs to render a frame
 - (void)drawInMTKView:(nonnull MTKView *)view
 {
+    drawCompletionCallback_t completion = self.onDrawCompletion;
+    self.onDrawCompletion = nil;
+    if (!completion) {
+        completion = ^(BOOL success){};
+    }
+    
     id<CSRenderSource> source = self.source;
     if (view.hidden || !source) {
-        _isViewInvalidated = NO;
+        self.isViewInvalidated = NO;
+        completion(NO);
         return;
     }
     
     dispatch_async(source.rendererQueue, ^{
         @autoreleasepool {
-            [self drawInMTKView:view serializedWithSource:source];
+            [self drawInMTKView:view serializedWithSource:source completion:completion];
         }
     });
 }
 
-- (void)drawInMTKView:(nonnull MTKView *)view serializedWithSource:(id<CSRenderSource>)source {
+- (void)drawInMTKView:(nonnull MTKView *)view serializedWithSource:(id<CSRenderSource>)source completion:(drawCompletionCallback_t)completion {
     id<CSRenderSource> cursorSource = source.cursorSource;
     
     // Create a new command buffer for each render pass to the current drawable
@@ -271,7 +279,8 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
 
     if (renderPassDescriptor == nil || currentDrawable == nil)
     {
-        _isViewInvalidated = NO;
+        self.isViewInvalidated = NO;
+        completion(NO);
         return;
     }
     
@@ -322,11 +331,12 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
         [commandBuffer presentDrawable:currentDrawable];
     }
     
+    // unblock the next draw
+    self.isViewInvalidated = NO;
+    
     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
         // GPU work is complete
-        [cursorSource rendererFrameHasRendered];
-        [source rendererFrameHasRendered];
-        _isViewInvalidated = NO;
+        completion(YES);
     }];
 
     // Finalize rendering here & push the command buffer to the GPU
@@ -334,20 +344,26 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     
     // block renderering queue until scheduled
     [commandBuffer waitUntilScheduled];
-    
 }
 
-- (void)renderSourceDidInvalidate:(id<CSRenderSource>)renderSource {
-    if (!self.isViewInvalidated && self.isManualDrawing) {
+- (void)renderSource:(id<CSRenderSource>)renderSource shouldDrawWithCompletion:(nullable void (^)(BOOL))completion {
+    if (completion || (!self.isViewInvalidated && self.isManualDrawing)) {
         // this combines many invalidate calls
         self.isViewInvalidated = YES;
         dispatch_async(dispatch_get_main_queue(), ^{
             MTKView *view = self.mtkView;
             if (view) {
+                if (self.onDrawCompletion && completion) {
+                    NSLog(@"WARNING: previous draw did complete rendering!");
+                }
+                self.onDrawCompletion = completion;
                 [self.mtkView draw];
             } else {
                 // do not block next draw
                 self.isViewInvalidated = NO;
+                if (completion) {
+                    completion(NO);
+                }
             }
         });
     }

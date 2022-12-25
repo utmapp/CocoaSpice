@@ -101,7 +101,7 @@ static void cs_invalidate(SpiceChannel *channel,
     self.isGLEnabled = NO;
     if (!CGRectIsEmpty(rect)) {
         [self drawRegion:rect];
-        [self.rendererDelegate renderSourceDidInvalidate:self];
+        [self.rendererDelegate renderSource:self shouldDrawWithCompletion:nil];
     }
 }
 
@@ -199,7 +199,14 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     SPICE_DEBUG("[CocoaSpice] %s",  __FUNCTION__);
 
     self.isGLEnabled = YES;
-    [self.rendererDelegate renderSourceDidInvalidate:self];
+    g_object_ref(channel);
+    [self.rendererDelegate renderSource:self shouldDrawWithCompletion:^(BOOL success) {
+        SPICE_DEBUG("[CocoaSpice] %s: GL rendering done with success:%d, sending ack", __FUNCTION__, success);
+        [CSMain.sharedInstance asyncWith:^{
+            spice_display_channel_gl_draw_done(channel);
+            g_object_unref(channel);
+        }];
+    }];
 }
 
 #pragma mark - Properties
@@ -580,20 +587,6 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         callback(blitCommandEncoder);
     }
     [self.canvasBlitQueue removeAllObjects];
-}
-
-- (void)rendererFrameHasRendered {
-    SpiceDisplayChannel *display = self.channel;
-    if (display && self.isGLEnabled && self.hasDrawOutstanding) {
-        dispatch_async(self.rendererQueue, ^{
-            [CSMain.sharedInstance syncWith:^{
-                // recheck to avoid race condition, outer if is just an optimization
-                if (self.hasDrawOutstanding) {
-                    spice_display_channel_gl_draw_done(display);
-                }
-            }];
-        });
-    }
 }
 
 - (void)setIsEnabled:(BOOL)isEnabled {

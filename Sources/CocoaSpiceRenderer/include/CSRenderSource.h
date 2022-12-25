@@ -75,9 +75,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter blitCommandEncoder: Encoder to perform blit commands
 - (void)rendererUpdateTextureWithBlitCommandEncoder:(id<MTLBlitCommandEncoder>)blitCommandEncoder;
 
-/// Callback made by the renderer to indicate that a single frame has been rendered
-- (void)rendererFrameHasRendered;
-
 @end
 
 NS_ASSUME_NONNULL_END

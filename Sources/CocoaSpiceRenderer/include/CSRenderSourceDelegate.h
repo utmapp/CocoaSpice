@@ -20,11 +20,14 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+typedef void (^drawCompletionCallback_t)(BOOL success);
+
 @protocol CSRenderSourceDelegate <NSObject>
 
 /// Called by the render source to indicate that the source should be re-drawn
-/// - Parameter renderSource: Render source that is invalidated
-- (void)renderSourceDidInvalidate:(id<CSRenderSource>)renderSource;
+/// - Parameter renderSource: Render source that is invalidatedvoid (^)(BOOL)
+/// - Parameter completion: Optional completion handler to run after rendering completes
+- (void)renderSource:(id<CSRenderSource>)renderSource shouldDrawWithCompletion:(nullable drawCompletionCallback_t)completion;
 
 /// Called by the render source to request manual draw mode
 ///
