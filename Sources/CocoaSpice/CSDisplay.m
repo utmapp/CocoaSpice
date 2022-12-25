@@ -71,7 +71,7 @@ static void cs_primary_create(SpiceChannel *channel, gint format,
     CSDisplay *self = (__bridge CSDisplay *)data;
     
     g_assert(format == SPICE_SURFACE_FMT_32_xRGB || format == SPICE_SURFACE_FMT_16_555);
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_sync(self.rendererQueue, ^{
         self.canvasArea = CGRectMake(0, 0, width, height);
         self.canvasFormat = format;
         self.canvasStride = stride;
@@ -85,7 +85,7 @@ static void cs_primary_destroy(SpiceDisplayChannel *channel, gpointer data) {
     CSDisplay *self = (__bridge CSDisplay *)data;
     self.ready = NO;
     
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_sync(self.rendererQueue, ^{
         self.canvasArea = CGRectZero;
         self.canvasFormat = 0;
         self.canvasStride = 0;
@@ -215,12 +215,10 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
             [self rebuildScanoutTextureWithSurface:self.delayedScanoutSurface width:self.delayedScanoutInfo.width height:self.delayedScanoutInfo.height];
             self.delayedScanoutSurface = nil;
         } else {
-            dispatch_async(self.rendererQueue, ^{
-                if (self.glTexture) {
-                    // reuse surface from existing texture (
-                    [self rebuildScanoutTextureWithSurface:self.glTexture.iosurface width:self.glTexture.width height:self.glTexture.height];
-                }
-            });
+            if (self.glTexture) {
+                // reuse surface from existing texture (
+                [self rebuildScanoutTextureWithSurface:self.glTexture.iosurface width:self.glTexture.width height:self.glTexture.height];
+            }
         }
     } else {
         [self rebuildCanvasTexture];
@@ -391,16 +389,18 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)updateVisibleAreaWithRect:(CGRect)rect {
-    CGRect primary = self.canvasArea;
-    CGRect visible = CGRectIntersection(primary, rect);
-    if (CGRectIsNull(visible)) {
-        SPICE_DEBUG("[CocoaSpice] The monitor area is not intersecting primary surface");
-        self.ready = NO;
-        self.visibleArea = CGRectZero;
-    } else {
-        self.visibleArea = visible;
-    }
-    self.displaySize = self.visibleArea.size;
+    dispatch_sync(self.rendererQueue, ^{
+        CGRect primary = self.canvasArea;
+        CGRect visible = CGRectIntersection(primary, rect);
+        if (CGRectIsNull(visible)) {
+            SPICE_DEBUG("[CocoaSpice] The monitor area is not intersecting primary surface");
+            self.ready = NO;
+            self.visibleArea = CGRectZero;
+        } else {
+            self.visibleArea = visible;
+        }
+        self.displaySize = self.visibleArea.size;
+    });
     [self rebuildDisplayVertices];
     if (!self.isGLEnabled) {
         [self rebuildCanvasTexture];
@@ -444,7 +444,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)rebuildScanoutTextureWithSurface:(IOSurfaceRef)surface width:(NSUInteger)width height:(NSUInteger)height {
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_sync(self.rendererQueue, ^{
         MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
         textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
         textureDescriptor.width = width;
@@ -457,11 +457,11 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)rebuildCanvasTexture {
-    CGRect visibleArea = self.visibleArea;
-    if (CGRectIsEmpty(visibleArea) || !self.device) {
-        return;
-    }
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_sync(self.rendererQueue, ^{
+        CGRect visibleArea = self.visibleArea;
+        if (CGRectIsEmpty(visibleArea) || !self.device) {
+            return;
+        }
         MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
         // don't worry that that components are reversed, we fix it in shaders
         textureDescriptor.pixelFormat = (self.canvasFormat == SPICE_SURFACE_FMT_32_xRGB) ? MTLPixelFormatBGRA8Unorm : (MTLPixelFormat)43;// FIXME: MTLPixelFormatBGR5A1Unorm is supposed to be available.
@@ -485,36 +485,38 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                                                           options:MTLResourceCPUCacheModeWriteCombined
 #endif
                                                       deallocator:nil];
+        [self drawRegion:visibleArea];
     });
-    [self drawRegion:visibleArea];
 }
 
 - (void)rebuildDisplayVertices {
-    CGRect visibleArea = self.visibleArea;
-    if (CGRectIsEmpty(visibleArea) || !self.device) {
-        return;
-    }
-    dispatch_async(self.rendererQueue, ^{
-        // We flip the y-coordinates because pixman renders flipped
-        CSRenderVertex quadVertices[] =
-        {
-            // Pixel positions, Texture coordinates
-            { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
-            { { -visibleArea.size.width/2,   visibleArea.size.height/2 },  { 0.f, 0.f } },
-            { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
+    dispatch_sync(self.rendererQueue, ^{
+        CGRect visibleArea = self.visibleArea;
+        if (CGRectIsEmpty(visibleArea) || !self.device) {
+            return;
+        }
+        dispatch_async(self.rendererQueue, ^{
+            // We flip the y-coordinates because pixman renders flipped
+            CSRenderVertex quadVertices[] =
+            {
+                // Pixel positions, Texture coordinates
+                { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
+                { { -visibleArea.size.width/2,   visibleArea.size.height/2 },  { 0.f, 0.f } },
+                { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
+                
+                { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
+                { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
+                { {  visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 1.f, 1.f } },
+            };
             
-            { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
-            { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
-            { {  visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 1.f, 1.f } },
-        };
-        
-        // Create our vertex buffer, and initialize it with our quadVertices array
-        self.vertices = [self.device newBufferWithBytes:quadVertices
-                                                 length:sizeof(quadVertices)
-                                                options:MTLResourceCPUCacheModeWriteCombined];
-        
-        // Calculate the number of vertices by dividing the byte length by the size of each vertex
-        self.numVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
+            // Create our vertex buffer, and initialize it with our quadVertices array
+            self.vertices = [self.device newBufferWithBytes:quadVertices
+                                                     length:sizeof(quadVertices)
+                                                    options:MTLResourceCPUCacheModeWriteCombined];
+            
+            // Calculate the number of vertices by dividing the byte length by the size of each vertex
+            self.numVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
+        });
     });
 }
 
