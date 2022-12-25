@@ -342,6 +342,20 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     return self.canvasBlitQueue.count > 0;
 }
 
+- (void)setViewportOrigin:(CGPoint)viewportOrigin {
+    if (!CGPointEqualToPoint(_viewportOrigin, viewportOrigin)) {
+        _viewportOrigin = viewportOrigin;
+        [self.rendererDelegate renderSource:self shouldDrawWithCompletion:nil];
+    }
+}
+
+- (void)setViewportScale:(CGFloat)viewportScale {
+    if (_viewportScale != viewportScale) {
+        _viewportScale = viewportScale;
+        [self.rendererDelegate renderSource:self shouldDrawWithCompletion:nil];
+    }
+}
+
 #pragma mark - Methods
 
 - (instancetype)initWithChannel:(SpiceDisplayChannel *)channel {
