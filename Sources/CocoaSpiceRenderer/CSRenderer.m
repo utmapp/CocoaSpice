@@ -275,19 +275,21 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
         return;
     }
     
-    // Create a bilt command encoder for any texture copying
-    id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
-    blitEncoder.label = @"Source Texture Updates";
-    
-    if (source.isVisible) {
-        [self.source rendererUpdateTextureWithBlitCommandEncoder:blitEncoder];
+    if (source.hasBlitCommands || cursorSource.hasBlitCommands) {
+        // Create a bilt command encoder for any texture copying
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+        blitEncoder.label = @"Source Texture Updates";
+        
+        if (source.isVisible) {
+            [self.source rendererUpdateTextureWithBlitCommandEncoder:blitEncoder];
+        }
+        
+        if (cursorSource && cursorSource.isVisible) {
+            [cursorSource rendererUpdateTextureWithBlitCommandEncoder:blitEncoder];
+        }
+        
+        [blitEncoder endEncoding];
     }
-    
-    if (cursorSource && cursorSource.isVisible) {
-        [cursorSource rendererUpdateTextureWithBlitCommandEncoder:blitEncoder];
-    }
-    
-    [blitEncoder endEncoding];
     
     // Create a render command encoder so we can render into something
     id<MTLRenderCommandEncoder> renderEncoder =

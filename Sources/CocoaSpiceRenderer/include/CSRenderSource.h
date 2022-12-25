@@ -64,6 +64,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// Set to the renderer to handle events from the renderer source
 @property (nonatomic, weak) id<CSRenderSourceDelegate> rendererDelegate;
 
+/// Set by render source to indicate that `-rendererUpdateTextureWithBlitCommandEncoder:` should be called before the render pass.
+/// 
+/// Should be accessed in `rendererQueue` context.
+@property (nonatomic, readonly) BOOL hasBlitCommands;
+
 /// Callback made by the renderer during the draw phase in the `rendererQueue` context
 ///
 /// This allows the renderer source to perform any buffer/texture copy before the render starts.

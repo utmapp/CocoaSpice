@@ -336,6 +336,10 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     }
 }
 
+- (BOOL)hasBlitCommands {
+    return self.canvasBlitQueue.count > 0;
+}
+
 #pragma mark - Methods
 
 - (instancetype)initWithChannel:(SpiceDisplayChannel *)channel {

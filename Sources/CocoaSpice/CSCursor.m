@@ -196,6 +196,10 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     return self.display.viewportScale; // matching scale
 }
 
+- (BOOL)hasBlitCommands {
+    return NO;
+}
+
 #pragma mark - Initializers
 
 - (instancetype)initWithChannel:(SpiceCursorChannel *)channel {
