@@ -363,7 +363,9 @@ static void cs_connection_destroy(SpiceSession *session,
         CSChannel* wrap = self.channels[i];
         cs_channel_destroy(spiceSession, wrap.spiceChannel, data);
     }
-    cs_channel_destroy(spiceSession, SPICE_CHANNEL(self.spiceMain), data);
+    if (self.spiceMain) {
+        cs_channel_destroy(spiceSession, SPICE_CHANNEL(self.spiceMain), data);
+    }
     g_object_unref(spiceSession);
 }
 

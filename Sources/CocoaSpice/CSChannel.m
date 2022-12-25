@@ -33,7 +33,9 @@
 }
 
 - (void)dealloc {
-    self.spiceMain = NULL; // call cleanup
+    if (_spiceMain) {
+        g_object_unref(_spiceMain);
+    }
 }
 
 @end
