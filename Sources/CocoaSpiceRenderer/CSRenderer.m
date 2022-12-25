@@ -321,13 +321,16 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     [renderEncoder endEncoding];
     
     // Schedule a present once the framebuffer is complete using the current drawable
+    BOOL lockFPS = NO;
+#if !TARGET_OS_SIMULATOR // for some reason the API is not defined in simulator SDK
     if (@available(macOS 10.15.4, *)) {
         if (self.preferredFramesPerSecond > 0) {
             [commandBuffer presentDrawable:currentDrawable afterMinimumDuration:1.0f/self.preferredFramesPerSecond];
-        } else {
-            [commandBuffer presentDrawable:currentDrawable];
         }
-    } else {
+    }
+#endif
+    
+    if (!lockFPS) {
         [commandBuffer presentDrawable:currentDrawable];
     }
     
