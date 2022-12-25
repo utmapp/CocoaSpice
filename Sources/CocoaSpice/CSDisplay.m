@@ -162,7 +162,6 @@ static void cs_update_monitor_area(SpiceChannel *channel, GParamSpec *pspec, gpo
     } else {
         [self updateVisibleAreaWithRect:CGRectMake(c->x, c->y, c->width, c->height)];
     }
-    [self.rendererDelegate renderSourceDidInvalidate:self];
     g_clear_pointer(&monitors, g_array_unref);
     return;
     
@@ -170,7 +169,6 @@ whole:
     g_clear_pointer(&monitors, g_array_unref);
     /* by display whole surface */
     [self updateVisibleAreaWithRect:self.canvasArea];
-    [self.rendererDelegate renderSourceDidInvalidate:self];
 }
 
 #pragma mark - GL
@@ -190,7 +188,6 @@ static void cs_gl_scanout(SpiceDisplayChannel *channel, GParamSpec *pspec, gpoin
     self.isGLEnabled = YES;
 
     [self rebuildScanoutTextureWithScanout:*scanout];
-    [self.rendererDelegate renderSourceDidInvalidate:self];
 }
 
 static void cs_gl_draw(SpiceDisplayChannel *channel,
