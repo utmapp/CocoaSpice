@@ -259,20 +259,6 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
         return;
     }
     
-    dispatch_async(source.rendererQueue, ^{
-        @autoreleasepool {
-            [self drawInMTKView:view serializedWithSource:source completion:completion];
-        }
-    });
-}
-
-- (void)drawInMTKView:(nonnull MTKView *)view serializedWithSource:(id<CSRenderSource>)source completion:(drawCompletionCallback_t)completion {
-    id<CSRenderSource> cursorSource = source.cursorSource;
-    
-    // Create a new command buffer for each render pass to the current drawable
-    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
-    commandBuffer.label = @"MyCommand";
-
     // Obtain a renderPassDescriptor generated from the view's drawable textures
     MTLRenderPassDescriptor *renderPassDescriptor = view.currentRenderPassDescriptor;
     id<MTLDrawable> currentDrawable = view.currentDrawable;
@@ -283,6 +269,26 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
         completion(NO);
         return;
     }
+    
+    dispatch_async(source.rendererQueue, ^{
+        @autoreleasepool {
+            [self _drawInCurrentDrawable:currentDrawable
+                    renderPassDescriptor:renderPassDescriptor
+                    serializedWithSource:source
+                              completion:completion];
+        }
+    });
+}
+
+- (void)_drawInCurrentDrawable:(id<MTLDrawable>)currentDrawable
+          renderPassDescriptor:(MTLRenderPassDescriptor *)renderPassDescriptor
+          serializedWithSource:(id<CSRenderSource>)source
+                    completion:(drawCompletionCallback_t)completion {
+    id<CSRenderSource> cursorSource = source.cursorSource;
+    
+    // Create a new command buffer for each render pass to the current drawable
+    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+    commandBuffer.label = @"MyCommand";
     
     if (source.hasBlitCommands || cursorSource.hasBlitCommands) {
         // Create a bilt command encoder for any texture copying
