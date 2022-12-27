@@ -22,6 +22,8 @@
 @class CSCursor;
 @class CSScreenshot;
 
+typedef void (^screenshotCallback_t)(CSScreenshot * _Nullable);
+
 NS_ASSUME_NONNULL_BEGIN
 
 /// Handles display rendering and resolution
@@ -39,10 +41,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Set by the caller to scale the display
 @property (nonatomic, readwrite) CGFloat viewportScale;
-
-/// This converts the current display state to an image for saving.
-/// Do NOT use this to render the display as it is slow and inefficient.
-@property (nonatomic, readonly) CSScreenshot *screenshot;
 
 /// Only true for one display in the system.
 /// If the caller supports only rendering a single display, it should be this one.
@@ -68,6 +66,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Does nothing is the guest agent is not installed. If successful, `displaySize` will be updated.
 /// @param bounds The requested display bounds
 - (void)requestResolution:(CGRect)bounds;
+
+/// Take a snapshot of the current framebuffer
+///
+/// This is slow and should NOT be used for presenting the framebuffer.
+/// @param completion Handler to recieve a screenshot (on success) or nil (when failed).
+- (void)screenshotWithCompletion:(screenshotCallback_t)completion;
 
 @end
 

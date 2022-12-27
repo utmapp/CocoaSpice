@@ -52,6 +52,7 @@ typedef void (^blitCommandCallback_t)(id<MTLBlitCommandEncoder>);
 // Other Drawing
 @property (nonatomic) CGRect visibleArea;
 @property (nonatomic, readwrite) CGSize displaySize;
+@property (nonatomic) dispatch_queue_t screenshotQueue;
 
 // CSRenderSource properties
 @property (nonatomic, nullable, readwrite) id<MTLTexture> canvasTexture;
@@ -92,6 +93,8 @@ static void cs_primary_destroy(SpiceDisplayChannel *channel, gpointer data) {
         self.canvasData = NULL;
         [self.canvasBlitQueue removeAllObjects];
     });
+    // fence for if we are currently processing a screenshot
+    dispatch_sync(self.screenshotQueue, ^{});
 }
 
 static void cs_invalidate(SpiceChannel *channel,
@@ -238,36 +241,65 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     return SPICE_CHANNEL(self.channel);
 }
 
-- (CSScreenshot *)screenshot {
-    __block CGImageRef img = NULL;
-    CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
-    
-    dispatch_sync(self.rendererQueue, ^{
-        if (!self.isGLEnabled && self.canvasData) { // may be destroyed at this point
-            CGDataProviderRef dataProviderRef = CGDataProviderCreateWithData(NULL, self.canvasData, self.canvasStride * self.canvasArea.size.height, nil);
-            img = CGImageCreate(self.canvasArea.size.width, self.canvasArea.size.height, 8, 32, self.canvasStride, colorSpaceRef, kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst, dataProviderRef, NULL, NO, kCGRenderingIntentDefault);
+- (void)screenshotWithCompletion:(screenshotCallback_t)completion {
+    dispatch_async(self.screenshotQueue, ^{
+        CGImageRef img = NULL;
+        __block const void *canvasData = NULL;
+        __block CGRect canvasArea;
+        __block gint canvasStride;
+        __block id<MTLTexture> glTexture = nil;
+        
+        dispatch_sync(self.rendererQueue, ^{
+            canvasData = self.canvasData;
+            canvasArea = self.canvasArea;
+            canvasStride = self.canvasStride;
+            glTexture = self.glTexture;
+            
+            if (self.isGLEnabled) {
+                canvasData = NULL;
+            } else {
+                glTexture = nil;
+            }
+        });
+        
+        if (canvasData) {
+            CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
+            CGDataProviderRef dataProviderRef = CGDataProviderCreateWithData(NULL,
+                                                                             canvasData,
+                                                                             canvasStride * canvasArea.size.height,
+                                                                             nil);
+            img = CGImageCreate(canvasArea.size.width,
+                                canvasArea.size.height,
+                                8,
+                                32,
+                                canvasStride,
+                                colorSpaceRef,
+                                kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
+                                dataProviderRef,
+                                NULL,
+                                NO,
+                                kCGRenderingIntentDefault);
             CGDataProviderRelease(dataProviderRef);
-        } else if (self.isGLEnabled && self.glTexture) {
-            CIImage *ciimage = [[CIImage alloc] initWithMTLTexture:self.glTexture options:nil];
+            CGColorSpaceRelease(colorSpaceRef);
+        } else if (glTexture) {
+            CIImage *ciimage = [[CIImage alloc] initWithMTLTexture:glTexture options:nil];
             CIImage *flipped = [ciimage imageByApplyingOrientation:kCGImagePropertyOrientationDownMirrored];
             CIContext *cictx = [CIContext context];
             img = [cictx createCGImage:flipped fromRect:flipped.extent];
         }
-    });
-    
-    CGColorSpaceRelease(colorSpaceRef);
-    
-    if (img) {
+        
+        if (img) {
 #if TARGET_OS_IPHONE
-        UIImage *uiimg = [UIImage imageWithCGImage:img];
+            UIImage *uiimg = [UIImage imageWithCGImage:img];
 #else
-        NSImage *uiimg = [[NSImage alloc] initWithCGImage:img size:NSZeroSize];
+            NSImage *uiimg = [[NSImage alloc] initWithCGImage:img size:NSZeroSize];
 #endif
-        CGImageRelease(img);
-        return [[CSScreenshot alloc] initWithImage:uiimg];
-    } else {
-        return nil;
-    }
+            CGImageRelease(img);
+            completion([[CSScreenshot alloc] initWithImage:uiimg]);
+        } else {
+            completion(nil);
+        }
+    });
 }
 
 - (id<MTLTexture>)texture {
@@ -366,6 +398,8 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         self.channel = g_object_ref(channel);
         self.monitorID = self.channelID;
         self.canvasBlitQueue = [NSMutableArray array];
+        dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0);
+        self.screenshotQueue = dispatch_queue_create("CocoaSpice Screenshot Worker", attr);
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         g_signal_connect(channel, "display-primary-create",
                          G_CALLBACK(cs_primary_create), (__bridge void *)self);
