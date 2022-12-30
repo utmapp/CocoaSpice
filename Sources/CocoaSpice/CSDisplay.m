@@ -48,13 +48,12 @@ typedef void (^blitCommandCallback_t)(id<MTLBlitCommandEncoder>);
 @property (nonatomic) CGRect canvasArea;
 @property (nonatomic) id<MTLBuffer> canvasBuffer;
 @property (nonatomic) NSUInteger canvasBufferOffset;
-@property (nonatomic, nonnull) NSMutableArray<blitCommandCallback_t> *canvasBlitQueue;
+@property (nonatomic) dispatch_queue_t canvasDrawQueue;
 
 // Other Drawing
 @property (nonatomic) CGRect visibleArea;
 @property (nonatomic, readwrite) CGSize displaySize;
 @property (nonatomic) dispatch_queue_t displayQueue;
-@property (nonatomic) dispatch_queue_t screenshotQueue;
 
 // CSRenderSource properties
 @property (nonatomic, nullable, readwrite) id<MTLTexture> canvasTexture;
@@ -74,11 +73,13 @@ static void cs_primary_create(SpiceChannel *channel, gint format,
     CSDisplay *self = (__bridge CSDisplay *)data;
     
     g_assert(format == SPICE_SURFACE_FMT_32_xRGB || format == SPICE_SURFACE_FMT_16_555);
-    dispatch_sync(self.displayQueue, ^{
-        self.canvasArea = CGRectMake(0, 0, width, height);
-        self.canvasFormat = format;
-        self.canvasStride = stride;
-        self.canvasData = imgdata;
+    dispatch_barrier_sync(self.canvasDrawQueue, ^{
+        dispatch_sync(self.displayQueue, ^{
+            self.canvasArea = CGRectMake(0, 0, width, height);
+            self.canvasFormat = format;
+            self.canvasStride = stride;
+            self.canvasData = imgdata;
+        });
     });
     
     cs_update_monitor_area(channel, NULL, data);
@@ -88,15 +89,14 @@ static void cs_primary_destroy(SpiceDisplayChannel *channel, gpointer data) {
     CSDisplay *self = (__bridge CSDisplay *)data;
     self.ready = NO;
     
-    dispatch_sync(self.displayQueue, ^{
-        self.canvasArea = CGRectZero;
-        self.canvasFormat = 0;
-        self.canvasStride = 0;
-        self.canvasData = NULL;
-        [self.canvasBlitQueue removeAllObjects];
+    dispatch_barrier_sync(self.canvasDrawQueue, ^{
+        dispatch_sync(self.displayQueue, ^{
+            self.canvasArea = CGRectZero;
+            self.canvasFormat = 0;
+            self.canvasStride = 0;
+            self.canvasData = NULL;
+        });
     });
-    // fence for if we are currently processing a screenshot
-    dispatch_sync(self.screenshotQueue, ^{});
 }
 
 static void cs_invalidate(SpiceChannel *channel,
@@ -245,7 +245,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)screenshotWithCompletion:(screenshotCallback_t)completion {
-    dispatch_async(self.screenshotQueue, ^{
+    dispatch_async(self.canvasDrawQueue, ^{
         CGImageRef img = NULL;
         __block const void *canvasData = NULL;
         __block CGRect canvasArea;
@@ -353,10 +353,6 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     return value;
 }
 
-- (BOOL)hasBlitCommands {
-    return self.canvasBlitQueue.count > 0;
-}
-
 - (void)setViewportOrigin:(CGPoint)viewportOrigin {
     if (!CGPointEqualToPoint(_viewportOrigin, viewportOrigin)) {
         _viewportOrigin = viewportOrigin;
@@ -384,11 +380,10 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         _viewportOrigin = CGPointMake(0, 0);
         self.channel = g_object_ref(channel);
         self.monitorID = self.channelID;
-        self.canvasBlitQueue = [NSMutableArray array];
         dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, 0);
         self.displayQueue = dispatch_queue_create("CocoaSpice Display Queue", attr);
-        attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0);
-        self.screenshotQueue = dispatch_queue_create("CocoaSpice Screenshot Worker", attr);
+        attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_CONCURRENT, QOS_CLASS_USER_INTERACTIVE, 0);
+        self.canvasDrawQueue = dispatch_queue_create("CocoaSpice Canvas Draw Queue", attr);
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         g_signal_connect(channel, "display-primary-create",
                          G_CALLBACK(cs_primary_create), (__bridge void *)self);
@@ -567,32 +562,38 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)drawRegion:(CGRect)rect {
-    dispatch_async(self.displayQueue, ^{
-        if (!self.canvasData || !self.canvasBuffer) {
-            return; // not ready to draw yet
-        }
-        NSInteger pixelSize = (self.canvasFormat == SPICE_SURFACE_FMT_32_xRGB) ? 4 : 2;
-        // create draw region
-        MTLRegion region = {
-            { rect.origin.x-self.visibleArea.origin.x, rect.origin.y-self.visibleArea.origin.y, 0 }, // MTLOrigin
-            { rect.size.width, rect.size.height, 1} // MTLSize
-        };
-        NSUInteger offset = (NSUInteger)(rect.origin.y*self.canvasStride + rect.origin.x*pixelSize);
-        NSUInteger totalBytes = rect.size.width*rect.size.height*pixelSize;
+    dispatch_async(self.canvasDrawQueue, ^{
+        dispatch_semaphore_t drawCompletedEvent = dispatch_semaphore_create(0);
+        dispatch_async(self.displayQueue, ^{
+            if (!self.canvasData || !self.canvasBuffer) {
+                dispatch_semaphore_signal(drawCompletedEvent);
+                return; // not ready to draw yet
+            }
+            NSInteger pixelSize = (self.canvasFormat == SPICE_SURFACE_FMT_32_xRGB) ? 4 : 2;
+            // create draw region
+            MTLRegion region = {
+                { rect.origin.x-self.visibleArea.origin.x, rect.origin.y-self.visibleArea.origin.y, 0 }, // MTLOrigin
+                { rect.size.width, rect.size.height, 1} // MTLSize
+            };
+            NSUInteger offset = (NSUInteger)(rect.origin.y*self.canvasStride + rect.origin.x*pixelSize);
+            NSUInteger totalBytes = rect.size.width*rect.size.height*pixelSize;
 #if TARGET_OS_OSX
-        for (NSUInteger i = 0; i < rect.size.height; i++) {
-            [self.canvasBuffer didModifyRange:NSMakeRange(offset+i*self.canvasStride,
-                                                          rect.size.width*pixelSize)];
-        }
+            for (NSUInteger i = 0; i < rect.size.height; i++) {
+                [self.canvasBuffer didModifyRange:NSMakeRange(offset+i*self.canvasStride,
+                                                              rect.size.width*pixelSize)];
+            }
 #endif
-        [self.rendererDelegate renderSouce:self
-                     copyAndDrawWithBuffer:self.canvasBuffer
-                                    region:region
-                              sourceOffset:self.canvasBufferOffset + offset
-                         sourceBytesPerRow:self.canvasStride
-                                completion:^(BOOL success) {
-            // FIXME: unlock canvas
-        }];
+            // hold a read lock on the concurrent draw queue
+            [self.rendererDelegate renderSouce:self
+                         copyAndDrawWithBuffer:self.canvasBuffer
+                                        region:region
+                                  sourceOffset:self.canvasBufferOffset + offset
+                             sourceBytesPerRow:self.canvasStride
+                                    completion:^(BOOL success) {
+                dispatch_semaphore_signal(drawCompletedEvent);
+            }];
+        });
+        dispatch_semaphore_wait(drawCompletedEvent, DISPATCH_TIME_FOREVER);
     });
 }
 
@@ -613,14 +614,6 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                                           TRUE);
         spice_main_channel_send_monitor_config(main);
     }];
-}
-
-- (void)rendererUpdateTextureWithBlitCommandEncoder:(id<MTLBlitCommandEncoder>)blitCommandEncoder {
-    // should already be running in rendererQueue!
-    for (blitCommandCallback_t callback in self.canvasBlitQueue) {
-        callback(blitCommandEncoder);
-    }
-    [self.canvasBlitQueue removeAllObjects];
 }
 
 - (void)setIsEnabled:(BOOL)isEnabled {
