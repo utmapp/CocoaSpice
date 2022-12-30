@@ -53,6 +53,7 @@ typedef void (^blitCommandCallback_t)(id<MTLBlitCommandEncoder>);
 // Other Drawing
 @property (nonatomic) CGRect visibleArea;
 @property (nonatomic, readwrite) CGSize displaySize;
+@property (nonatomic) dispatch_queue_t displayQueue;
 @property (nonatomic) dispatch_queue_t screenshotQueue;
 
 // CSRenderSource properties
@@ -73,7 +74,7 @@ static void cs_primary_create(SpiceChannel *channel, gint format,
     CSDisplay *self = (__bridge CSDisplay *)data;
     
     g_assert(format == SPICE_SURFACE_FMT_32_xRGB || format == SPICE_SURFACE_FMT_16_555);
-    dispatch_sync(self.rendererQueue, ^{
+    dispatch_sync(self.displayQueue, ^{
         self.canvasArea = CGRectMake(0, 0, width, height);
         self.canvasFormat = format;
         self.canvasStride = stride;
@@ -87,7 +88,7 @@ static void cs_primary_destroy(SpiceDisplayChannel *channel, gpointer data) {
     CSDisplay *self = (__bridge CSDisplay *)data;
     self.ready = NO;
     
-    dispatch_sync(self.rendererQueue, ^{
+    dispatch_sync(self.displayQueue, ^{
         self.canvasArea = CGRectZero;
         self.canvasFormat = 0;
         self.canvasStride = 0;
@@ -203,7 +204,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
     self.isGLEnabled = YES;
     g_object_ref(channel);
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_async(self.displayQueue, ^{
         [self.rendererDelegate renderSource:self drawWithCompletion:^(BOOL success) {
             SPICE_DEBUG("[CocoaSpice] %s: GL rendering done with success:%d, sending ack", __FUNCTION__, success);
             [CSMain.sharedInstance asyncWith:^{
@@ -251,7 +252,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         __block gint canvasStride;
         __block id<MTLTexture> glTexture = nil;
         
-        dispatch_sync(self.rendererQueue, ^{
+        dispatch_sync(self.displayQueue, ^{
             canvasData = self.canvasData;
             canvasArea = self.canvasArea;
             canvasStride = self.canvasStride;
@@ -352,10 +353,6 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     return value;
 }
 
-- (dispatch_queue_t)rendererQueue {
-    return CSMain.sharedInstance.rendererQueue;
-}
-
 - (BOOL)hasBlitCommands {
     return self.canvasBlitQueue.count > 0;
 }
@@ -363,7 +360,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 - (void)setViewportOrigin:(CGPoint)viewportOrigin {
     if (!CGPointEqualToPoint(_viewportOrigin, viewportOrigin)) {
         _viewportOrigin = viewportOrigin;
-        dispatch_async(self.rendererQueue, ^{
+        dispatch_async(self.displayQueue, ^{
             [self.rendererDelegate drawRenderSource:self];
         });
     }
@@ -372,7 +369,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 - (void)setViewportScale:(CGFloat)viewportScale {
     if (_viewportScale != viewportScale) {
         _viewportScale = viewportScale;
-        dispatch_async(self.rendererQueue, ^{
+        dispatch_async(self.displayQueue, ^{
             [self.rendererDelegate drawRenderSource:self];
         });
     }
@@ -383,12 +380,14 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 - (instancetype)initWithChannel:(SpiceDisplayChannel *)channel {
     if (self = [self init]) {
         SpiceDisplayPrimary primary;
-        self.viewportScale = 1.0f;
-        self.viewportOrigin = CGPointMake(0, 0);
+        _viewportScale = 1.0f;
+        _viewportOrigin = CGPointMake(0, 0);
         self.channel = g_object_ref(channel);
         self.monitorID = self.channelID;
         self.canvasBlitQueue = [NSMutableArray array];
-        dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0);
+        dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, 0);
+        self.displayQueue = dispatch_queue_create("CocoaSpice Display Queue", attr);
+        attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0);
         self.screenshotQueue = dispatch_queue_create("CocoaSpice Screenshot Worker", attr);
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         g_signal_connect(channel, "display-primary-create",
@@ -434,7 +433,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)updateVisibleAreaWithRect:(CGRect)rect {
-    dispatch_sync(self.rendererQueue, ^{
+    dispatch_sync(self.displayQueue, ^{
         CGRect primary = self.canvasArea;
         CGRect visible = CGRectIntersection(primary, rect);
         if (CGRectIsNull(visible)) {
@@ -489,7 +488,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)rebuildScanoutTextureWithSurface:(IOSurfaceRef)surface width:(NSUInteger)width height:(NSUInteger)height {
-    dispatch_sync(self.rendererQueue, ^{
+    dispatch_sync(self.displayQueue, ^{
         MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
         textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
         textureDescriptor.width = width;
@@ -502,7 +501,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)rebuildCanvasTexture {
-    dispatch_sync(self.rendererQueue, ^{
+    dispatch_sync(self.displayQueue, ^{
         CGRect visibleArea = self.visibleArea;
         if (CGRectIsEmpty(visibleArea) || !self.device) {
             return;
@@ -537,12 +536,12 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)rebuildDisplayVertices {
-    dispatch_sync(self.rendererQueue, ^{
+    dispatch_sync(self.displayQueue, ^{
         CGRect visibleArea = self.visibleArea;
         if (CGRectIsEmpty(visibleArea) || !self.device) {
             return;
         }
-        dispatch_async(self.rendererQueue, ^{
+        dispatch_async(self.displayQueue, ^{
             // We flip the y-coordinates because pixman renders flipped
             CSRenderVertex quadVertices[] =
             {
@@ -568,7 +567,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)drawRegion:(CGRect)rect {
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_async(self.displayQueue, ^{
         if (!self.canvasData || !self.canvasBuffer) {
             return; // not ready to draw yet
         }

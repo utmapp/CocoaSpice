@@ -39,9 +39,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// Advanced users can use this with GLib to run in the worker thread's context
 @property (nonatomic, readonly) void *glibMainContext;
 
-/// Shared queue to serialize all renderer operations
-@property (nonatomic, readonly) dispatch_queue_t rendererQueue;
-
 /// Use this to get a pointer to this singleton
 @property (class, nonatomic, readonly) CSMain *sharedInstance NS_SWIFT_NAME(shared);
 

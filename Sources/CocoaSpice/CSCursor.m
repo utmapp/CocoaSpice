@@ -33,6 +33,7 @@
 @property (nonatomic, nullable, readwrite) id<MTLTexture> texture;
 @property (nonatomic, readwrite) NSUInteger numVertices;
 @property (nonatomic, nullable, readwrite) id<MTLBuffer> vertices;
+@property (nonatomic) dispatch_queue_t cursorQueue;
 
 @end
 
@@ -43,8 +44,14 @@
 static void cs_cursor_invalidate(CSCursor *self)
 {
     CSDisplay *display = self.display;
-    dispatch_async(self.rendererQueue, ^{
-        [self.rendererDelegate drawRenderSource:display];
+    if (!display) {
+        return;
+    }
+    // we need to synchronize with both the cursor draw queue and the display draw queue
+    dispatch_async(self.cursorQueue, ^{
+        dispatch_sync(display.displayQueue, ^{
+            [self.rendererDelegate drawRenderSource:display];
+        });
     });
 }
 
@@ -69,7 +76,7 @@ static void cs_cursor_set(SpiceCursorChannel *channel,
         [self rebuildCursorWithSize:newSize center:hotspot];
     }
     [self drawCursor:cursor_shape->data];
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_async(self.cursorQueue, ^{
         // this has to be after drawCursor: which runs in the same serial queue
         g_boxed_free(SPICE_TYPE_CURSOR_SHAPE, cursor_shape);
     });
@@ -154,10 +161,6 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     return self.display.device;
 }
 
-- (dispatch_queue_t)rendererQueue {
-    return CSMain.sharedInstance.rendererQueue;
-}
-
 - (id<CSRenderSourceDelegate>)rendererDelegate {
     return self.display.rendererDelegate;
 }
@@ -209,6 +212,8 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     if (self = [self init]) {
         gpointer cursor_shape;
         self.channel = g_object_ref(channel);
+        dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, 0);
+        self.cursorQueue = dispatch_queue_create("CocoaSpice Cursor Queue", attr);
         g_signal_connect(channel, "notify::cursor",
                          G_CALLBACK(cs_cursor_set), (__bridge void *)self);
         g_signal_connect(channel, "cursor-move",
@@ -252,7 +257,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     textureDescriptor.width = size.width;
     textureDescriptor.height = size.height;
     textureDescriptor.usage = MTLTextureUsageShaderRead;
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_async(self.cursorQueue, ^{
         self.texture = [self.device newTextureWithDescriptor:textureDescriptor];
         
         // We flip the y-coordinates because pixman renders flipped
@@ -282,7 +287,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
 }
 
 - (void)destroyCursor {
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_async(self.cursorQueue, ^{
         self.numVertices = 0;
         self.vertices = nil;
         self.texture = nil;
@@ -293,7 +298,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
 }
 
 - (void)drawCursor:(const void *)buffer {
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_async(self.cursorQueue, ^{
         CGSize cursorSize = self.cursorSize;
         if (CGSizeEqualToSize(cursorSize, CGSizeZero)) {
             return;

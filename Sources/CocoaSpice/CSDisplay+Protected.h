@@ -30,6 +30,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, nullable, weak, readwrite) CSCursor *cursor;
 
+@property (nonatomic, readonly) dispatch_queue_t displayQueue;
+
 /// Set to true in CSConnection after seeing the first monitor config
 @property (nonatomic) BOOL hasInitialConfig;
 
