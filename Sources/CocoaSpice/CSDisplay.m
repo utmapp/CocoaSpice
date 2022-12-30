@@ -105,7 +105,6 @@ static void cs_invalidate(SpiceChannel *channel,
     self.isGLEnabled = NO;
     if (!CGRectIsEmpty(rect)) {
         [self drawRegion:rect];
-        [self.rendererDelegate renderSource:self shouldDrawWithCompletion:nil];
     }
 }
 
@@ -204,13 +203,15 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
     self.isGLEnabled = YES;
     g_object_ref(channel);
-    [self.rendererDelegate renderSource:self shouldDrawWithCompletion:^(BOOL success) {
-        SPICE_DEBUG("[CocoaSpice] %s: GL rendering done with success:%d, sending ack", __FUNCTION__, success);
-        [CSMain.sharedInstance asyncWith:^{
-            spice_display_channel_gl_draw_done(channel);
-            g_object_unref(channel);
+    dispatch_async(self.rendererQueue, ^{
+        [self.rendererDelegate renderSource:self drawWithCompletion:^(BOOL success) {
+            SPICE_DEBUG("[CocoaSpice] %s: GL rendering done with success:%d, sending ack", __FUNCTION__, success);
+            [CSMain.sharedInstance asyncWith:^{
+                spice_display_channel_gl_draw_done(channel);
+                g_object_unref(channel);
+            }];
         }];
-    }];
+    });
 }
 
 #pragma mark - Properties
@@ -355,22 +356,6 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     return CSMain.sharedInstance.rendererQueue;
 }
 
-- (void)setRendererDelegate:(id<CSRenderSourceDelegate>)rendererDelegate {
-    if (_rendererDelegate != rendererDelegate) {
-        _rendererDelegate = rendererDelegate;
-        [rendererDelegate renderSource:self didChangeModeToManualDrawing:self.isGLEnabled];
-    }
-}
-
-- (void)setIsGLEnabled:(BOOL)isGLEnabled {
-    if (_isGLEnabled != isGLEnabled) {
-        _isGLEnabled = isGLEnabled;
-        SPICE_DEBUG("[CocoaSpice] Switching render mode to manual:%d", isGLEnabled);
-        // switch to manual drawing mode for GL updates
-        [self.rendererDelegate renderSource:self didChangeModeToManualDrawing:isGLEnabled];
-    }
-}
-
 - (BOOL)hasBlitCommands {
     return self.canvasBlitQueue.count > 0;
 }
@@ -378,14 +363,18 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 - (void)setViewportOrigin:(CGPoint)viewportOrigin {
     if (!CGPointEqualToPoint(_viewportOrigin, viewportOrigin)) {
         _viewportOrigin = viewportOrigin;
-        [self.rendererDelegate renderSource:self shouldDrawWithCompletion:nil];
+        dispatch_async(self.rendererQueue, ^{
+            [self.rendererDelegate drawRenderSource:self];
+        });
     }
 }
 
 - (void)setViewportScale:(CGFloat)viewportScale {
     if (_viewportScale != viewportScale) {
         _viewportScale = viewportScale;
-        [self.rendererDelegate renderSource:self shouldDrawWithCompletion:nil];
+        dispatch_async(self.rendererQueue, ^{
+            [self.rendererDelegate drawRenderSource:self];
+        });
     }
 }
 
@@ -591,25 +580,20 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         };
         NSUInteger offset = (NSUInteger)(rect.origin.y*self.canvasStride + rect.origin.x*pixelSize);
         NSUInteger totalBytes = rect.size.width*rect.size.height*pixelSize;
-        blitCommandCallback_t callback = ^(id<MTLBlitCommandEncoder> commandEncoder) {
-            [commandEncoder copyFromBuffer:self.canvasBuffer
-                              sourceOffset:offset
-                         sourceBytesPerRow:self.canvasStride
-                       sourceBytesPerImage:0
-                                sourceSize:region.size
-                                 toTexture:self.canvasTexture
-                          destinationSlice:0
-                          destinationLevel:0
-                         destinationOrigin:region.origin];
-        };
-        // TODO: discard any newly invalid callbacks
-        [self.canvasBlitQueue addObject:callback];
 #if TARGET_OS_OSX
         for (NSUInteger i = 0; i < rect.size.height; i++) {
             [self.canvasBuffer didModifyRange:NSMakeRange(offset+i*self.canvasStride,
                                                           rect.size.width*pixelSize)];
         }
 #endif
+        [self.rendererDelegate renderSouce:self
+                     copyAndDrawWithBuffer:self.canvasBuffer
+                                    region:region
+                              sourceOffset:self.canvasBufferOffset + offset
+                         sourceBytesPerRow:self.canvasStride
+                                completion:^(BOOL success) {
+            // FIXME: unlock canvas
+        }];
     });
 }
 

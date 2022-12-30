@@ -24,18 +24,32 @@ typedef void (^drawCompletionCallback_t)(BOOL success);
 
 @protocol CSRenderSourceDelegate <NSObject>
 
-/// Called by the render source to indicate that the source should be re-drawn
-/// - Parameter renderSource: Render source that is invalidatedvoid (^)(BOOL)
-/// - Parameter completion: Optional completion handler to run after rendering completes
-- (void)renderSource:(id<CSRenderSource>)renderSource shouldDrawWithCompletion:(nullable drawCompletionCallback_t)completion;
-
-/// Called by the render source to request manual draw mode
-///
-/// In manual draw mode, rendering will only be done when invalidated. Otherwise, it will be done on a timer.
+/// Update the existing texture with pixel data and then render it to the back buffer
 /// - Parameters:
-///   - renderSource: Render source that requested the change
-///   - manualDrawing: Should manual drawing be done?
-- (void)renderSource:(id<CSRenderSource>)renderSource didChangeModeToManualDrawing:(BOOL)manualDrawing;
+///   - renderSource: Source to render
+///   - sourceBuffer: Buffer to draw to the source texture
+///   - region: Region in the source texture to draw to
+///   - sourceOffset: Offset in the source buffer to copy from
+///   - sourceBytesPerRow: Stride of the source buffer
+///   - completion: Block to run after the texture is rendered to the back buffer
+- (void)renderSouce:(id<CSRenderSource>)renderSource copyAndDrawWithBuffer:(id<MTLBuffer>)sourceBuffer
+             region:(MTLRegion)region
+       sourceOffset:(NSUInteger)sourceOffset
+  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+         completion:(drawCompletionCallback_t)completion;
+
+/// Render an existing texture to the back buffer
+///
+/// Source must be visible!
+/// - Parameters:
+///   - renderSource: Source to render
+///   - completion: Block to run after the texture is rendered to the back buffer
+- (void)renderSource:(id<CSRenderSource>)renderSource drawWithCompletion:(drawCompletionCallback_t)completion;
+
+/// Render an existing texture to the back buffer without callback
+/// - Parameters:
+///   - renderSource: Source to render
+- (void)drawRenderSource:(id<CSRenderSource>)renderSource;
 
 @end
 
