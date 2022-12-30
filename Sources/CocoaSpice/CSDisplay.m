@@ -47,6 +47,7 @@ typedef void (^blitCommandCallback_t)(id<MTLBlitCommandEncoder>);
 @property (nonatomic, nullable) const void *canvasData;
 @property (nonatomic) CGRect canvasArea;
 @property (nonatomic) id<MTLBuffer> canvasBuffer;
+@property (nonatomic) NSUInteger canvasBufferOffset;
 @property (nonatomic, nonnull) NSMutableArray<blitCommandCallback_t> *canvasBlitQueue;
 
 // Other Drawing
@@ -525,14 +526,16 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         textureDescriptor.usage = MTLTextureUsageShaderRead;
         textureDescriptor.storageMode = MTLStorageModePrivate;
         self.canvasTexture = [self.device newTextureWithDescriptor:textureDescriptor];
-        const void *canvasData = self.canvasData;
-        gint canvasSize = self.canvasStride * self.canvasArea.size.height;
-        if (!canvasData || !canvasSize) {
+        uintptr_t canvasDataAligned = trunc_page_kernel((uintptr_t)self.canvasData);
+        NSUInteger canvasSize = self.canvasStride * self.canvasArea.size.height;
+        if (!canvasDataAligned || !canvasSize) {
             return; // it will be freed
         }
         // round size up to multiple of page size
-        canvasSize = mach_vm_round_page(canvasSize);
-        self.canvasBuffer = [self.device newBufferWithBytesNoCopy:(void *)canvasData
+        self.canvasBufferOffset = ((uintptr_t)self.canvasData - canvasDataAligned);
+        canvasSize += self.canvasBufferOffset;
+        canvasSize = round_page_kernel(canvasSize);
+        self.canvasBuffer = [self.device newBufferWithBytesNoCopy:(void *)canvasDataAligned
                                                            length:canvasSize
 #if TARGET_OS_OSX
                                                           options:MTLResourceStorageModeManaged
