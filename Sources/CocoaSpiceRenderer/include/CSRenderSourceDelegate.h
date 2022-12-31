@@ -24,32 +24,33 @@ typedef void (^drawCompletionCallback_t)(BOOL success);
 
 @protocol CSRenderSourceDelegate <NSObject>
 
-/// Update the existing texture with pixel data and then render it to the back buffer
+/// Update the existing texture with pixel data and invalidate
 /// - Parameters:
 ///   - renderSource: Source to render
 ///   - sourceBuffer: Buffer to draw to the source texture
 ///   - region: Region in the source texture to draw to
 ///   - sourceOffset: Offset in the source buffer to copy from
 ///   - sourceBytesPerRow: Stride of the source buffer
-///   - completion: Block to run after the texture is rendered to the back buffer
-- (void)renderSouce:(id<CSRenderSource>)renderSource copyAndDrawWithBuffer:(id<MTLBuffer>)sourceBuffer
+///   - completion: Block to run after the texture is rendered
+- (void)renderSouce:(id<CSRenderSource>)renderSource
+         copyBuffer:(id<MTLBuffer>)sourceBuffer
              region:(MTLRegion)region
        sourceOffset:(NSUInteger)sourceOffset
   sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
          completion:(drawCompletionCallback_t)completion;
 
-/// Render an existing texture to the back buffer
+/// Mark source pending to be rendered with a callback when rendered
 ///
 /// Source must be visible!
 /// - Parameters:
 ///   - renderSource: Source to render
-///   - completion: Block to run after the texture is rendered to the back buffer
+///   - completion: Block to run after the texture is rendered
 - (void)renderSource:(id<CSRenderSource>)renderSource drawWithCompletion:(drawCompletionCallback_t)completion;
 
-/// Render an existing texture to the back buffer without callback
+/// Mark source pending to be rendered
 /// - Parameters:
 ///   - renderSource: Source to render
-- (void)drawRenderSource:(id<CSRenderSource>)renderSource;
+- (void)invalidateRenderSource:(id<CSRenderSource>)renderSource;
 
 @end
 

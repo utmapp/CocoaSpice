@@ -50,7 +50,7 @@ static void cs_cursor_invalidate(CSCursor *self)
     // we need to synchronize with both the cursor draw queue and the display draw queue
     dispatch_async(self.cursorQueue, ^{
         dispatch_sync(display.displayQueue, ^{
-            [self.rendererDelegate drawRenderSource:display];
+            [self.rendererDelegate invalidateRenderSource:display];
         });
     });
 }

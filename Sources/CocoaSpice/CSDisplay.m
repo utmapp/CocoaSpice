@@ -206,11 +206,12 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     g_object_ref(channel);
     dispatch_async(self.displayQueue, ^{
         [self.rendererDelegate renderSource:self drawWithCompletion:^(BOOL success) {
-            SPICE_DEBUG("[CocoaSpice] %s: GL rendering done with success:%d, sending ack", __FUNCTION__, success);
-            [CSMain.sharedInstance asyncWith:^{
-                spice_display_channel_gl_draw_done(channel);
-                g_object_unref(channel);
-            }];
+            SPICE_DEBUG("[CocoaSpice] %s: GL rendering done with success:%d", __FUNCTION__, success);
+        }];
+        // unblock the caller immedately
+        [CSMain.sharedInstance asyncWith:^{
+            spice_display_channel_gl_draw_done(channel);
+            g_object_unref(channel);
         }];
     });
 }
@@ -357,7 +358,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     if (!CGPointEqualToPoint(_viewportOrigin, viewportOrigin)) {
         _viewportOrigin = viewportOrigin;
         dispatch_async(self.displayQueue, ^{
-            [self.rendererDelegate drawRenderSource:self];
+            [self.rendererDelegate invalidateRenderSource:self];
         });
     }
 }
@@ -366,7 +367,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     if (_viewportScale != viewportScale) {
         _viewportScale = viewportScale;
         dispatch_async(self.displayQueue, ^{
-            [self.rendererDelegate drawRenderSource:self];
+            [self.rendererDelegate invalidateRenderSource:self];
         });
     }
 }
@@ -585,7 +586,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 #endif
             // hold a read lock on the concurrent draw queue
             [self.rendererDelegate renderSouce:self
-                         copyAndDrawWithBuffer:self.canvasBuffer
+                                    copyBuffer:self.canvasBuffer
                                         region:region
                                   sourceOffset:self.canvasBufferOffset + offset
                              sourceBytesPerRow:self.canvasStride
