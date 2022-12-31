@@ -374,11 +374,10 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
 }
 
 - (void)drawRenderSource:(id<CSRenderSource>)renderSource {
-    if (!renderSource.isVisible) {
+    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource];
+    if (!sourceData.isVisible) {
         return;
     }
-    
-    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource];
     
     dispatch_async(self.rendererQueue, ^{
         id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
