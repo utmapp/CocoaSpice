@@ -17,8 +17,6 @@
 #import <Foundation/Foundation.h>
 @import MetalKit;
 
-@protocol CSRenderSourceDelegate;
-
 NS_ASSUME_NONNULL_BEGIN
 
 /// Shared context between renderer and CocoaSpice.
@@ -32,9 +30,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Set by the caller to a scale factor of the display that is drawn
 @property (nonatomic, readonly) CGFloat viewportScale;
-
-/// Set by the caller to the Metal device used for rendering
-@property (nonatomic, nullable) id<MTLDevice> device;
 
 /// Contains the texture where the source is rendered to
 /// This property should be queried each time a frame is drawn
@@ -57,9 +52,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Render a cursor overlaid onto this source
 @property (nonatomic, readonly, weak) id<CSRenderSource> cursorSource;
-
-/// Set to the renderer to handle events from the renderer source
-@property (nonatomic, weak) id<CSRenderSourceDelegate> rendererDelegate;
 
 @end
 

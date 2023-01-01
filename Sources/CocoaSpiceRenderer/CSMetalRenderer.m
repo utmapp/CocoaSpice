@@ -17,9 +17,9 @@
 @import simd;
 @import MetalKit;
 
-#import "CSRenderer.h"
+#import "CSMetalRenderer.h"
 #import "CSRenderSource.h"
-#import "CSRenderSourceDelegate.h"
+#import "CSRenderer.h"
 
 // Header shared between C code here, which executes Metal API commands, and .metal files, which
 //   uses these types as inputs to the shaders
@@ -49,10 +49,6 @@ NS_ASSUME_NONNULL_BEGIN
 NS_ASSUME_NONNULL_END
 
 @implementation _CSRendererSourceData
-
-// unused properties
-@synthesize device;
-@synthesize rendererDelegate;
 
 /// Retain a copy of the render source data
 /// - Parameter renderSource: Render source to read from
@@ -90,7 +86,7 @@ NS_ASSUME_NONNULL_END
 
 @end
 
-@interface CSRenderer ()
+@interface CSMetalRenderer ()
 
 @property (nonatomic) dispatch_queue_t rendererQueue;
 @property (nonatomic, nullable) _CSRendererSourceData *sourceData;
@@ -99,7 +95,7 @@ NS_ASSUME_NONNULL_END
 @end
 
 // Main class performing the rendering
-@implementation CSRenderer
+@implementation CSMetalRenderer
 {
     // The device (aka GPU) we're using to render
     id<MTLDevice> _device;
@@ -117,11 +113,7 @@ NS_ASSUME_NONNULL_END
     id<MTLSamplerState> _sampler;
 }
 
-- (void)setSource:(id<CSRenderSource>)source {
-    source.device = _device;
-    source.rendererDelegate = self;
-    _source = source;
-}
+@synthesize device = _device;
 
 /// Initialize with the MetalKit view from which we'll obtain our Metal device
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView

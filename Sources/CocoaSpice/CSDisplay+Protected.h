@@ -15,6 +15,7 @@
 //
 
 #import "CSDisplay.h"
+#import "CSRenderer.h"
 
 typedef struct _SpiceDisplayChannel SpiceDisplayChannel;
 
@@ -30,7 +31,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, nullable, weak, readwrite) CSCursor *cursor;
 
-@property (nonatomic, readonly) dispatch_queue_t displayQueue;
+@property (nonatomic) id<MTLDevice> device;
 
 /// Set to true in CSConnection after seeing the first monitor config
 @property (nonatomic) BOOL hasInitialConfig;
@@ -39,6 +40,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// @param channel Display channel
 /// @param monitorID Monitor in the channel
 - (instancetype)initWithChannel:(SpiceDisplayChannel *)channel NS_DESIGNATED_INITIALIZER;
+
+@end
+
+@interface CSDisplay (Renderer)
+
+- (void)copyBuffer:(id<MTLBuffer>)sourceBuffer
+            region:(MTLRegion)region
+      sourceOffset:(NSUInteger)sourceOffset
+ sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+        completion:(drawCompletionCallback_t)completion;
+- (void)drawWithCompletion:(drawCompletionCallback_t)completion;
+- (void)invalidate;
 
 @end
 

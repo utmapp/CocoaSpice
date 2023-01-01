@@ -1,5 +1,5 @@
 //
-// Copyright © 2022 osy. All rights reserved.
+// Copyright © 2023 osy. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,25 +14,20 @@
 // limitations under the License.
 //
 
-#ifndef CocoaSpice_h
-#define CocoaSpice_h
+#import "CSDisplay.h"
 
-#include "CSChannel.h"
-#include "CSConnection.h"
-#include "CSConnectionDelegate.h"
-#include "CSCursor.h"
-#include "CSDisplay.h"
-#include "CSDisplay+Renderer.h"
-#include "CSInput.h"
-#include "CSMain.h"
-#include "CSPasteboardDelegate.h"
-#include "CSPort.h"
-#include "CSPortDelegate.h"
-#include "CSScreenshot.h"
-#include "CSSession.h"
-#include "CSSession+Sharing.h"
-#include "CSUSBDevice.h"
-#include "CSUSBManager.h"
-#include "CSUSBManagerDelegate.h"
+NS_ASSUME_NONNULL_BEGIN
 
-#endif /* CocoaSpice_h */
+@interface CSDisplay (Renderer)
+
+- (void)copyBuffer:(id<MTLBuffer>)sourceBuffer
+            region:(MTLRegion)region
+      sourceOffset:(NSUInteger)sourceOffset
+ sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+        completion:(drawCompletionCallback_t)completion;
+- (void)drawWithCompletion:(drawCompletionCallback_t)completion;
+- (void)invalidate;
+
+@end
+
+NS_ASSUME_NONNULL_END

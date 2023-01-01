@@ -15,6 +15,7 @@
 //
 
 #import <Foundation/Foundation.h>
+@import Metal;
 
 @protocol CSRenderSource;
 
@@ -22,7 +23,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 typedef void (^drawCompletionCallback_t)(BOOL success);
 
-@protocol CSRenderSourceDelegate <NSObject>
+@protocol CSRenderer <NSObject>
+
+/// A Metal device linked to a renderer
+@property (nonatomic, readonly) id<MTLDevice> device;
 
 /// Update the existing texture with pixel data and invalidate
 /// - Parameters:

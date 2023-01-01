@@ -19,6 +19,7 @@
 #import "CocoaSpice.h"
 #import "CSCursor+Protected.h"
 #import "CSChannel+Protected.h"
+#import "CSDisplay+Renderer_Protected.h"
 #import "CSShaderTypes.h"
 #import <glib.h>
 #import <poll.h>
@@ -60,6 +61,9 @@ typedef void (^blitCommandCallback_t)(id<MTLBlitCommandEncoder>);
 @property (nonatomic, nullable, readwrite) id<MTLTexture> glTexture;
 @property (nonatomic, readwrite) NSUInteger numVertices;
 @property (nonatomic, nullable, readwrite) id<MTLBuffer> vertices;
+
+@property (nonatomic) id<MTLDevice> device;
+@property (nonatomic) NSMutableArray<id<CSRenderer>> *renderers;
 
 @end
 
@@ -204,24 +208,22 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
     self.isGLEnabled = YES;
     g_object_ref(channel);
-    dispatch_async(self.displayQueue, ^{
-        [self.rendererDelegate renderSource:self drawWithCompletion:^(BOOL success) {
-            SPICE_DEBUG("[CocoaSpice] %s: GL rendering done with success:%d", __FUNCTION__, success);
-        }];
-        // unblock the caller immedately
-        [CSMain.sharedInstance asyncWith:^{
-            spice_display_channel_gl_draw_done(channel);
-            g_object_unref(channel);
-        }];
-    });
+    [self drawWithCompletion:^(BOOL success) {
+        SPICE_DEBUG("[CocoaSpice] %s: GL rendering done with success:%d", __FUNCTION__, success);
+    }];
+    // unblock the caller immedately
+    [CSMain.sharedInstance asyncWith:^{
+        spice_display_channel_gl_draw_done(channel);
+        g_object_unref(channel);
+    }];
 }
 
 #pragma mark - Properties
 
-@synthesize device = _device;
-@synthesize rendererDelegate = _rendererDelegate;
-
 - (void)setDevice:(id<MTLDevice>)device {
+    if (_device == device) {
+        return;
+    }
     _device = device;
     [self rebuildDisplayVertices];
     if (self.isGLEnabled) {
@@ -357,18 +359,14 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 - (void)setViewportOrigin:(CGPoint)viewportOrigin {
     if (!CGPointEqualToPoint(_viewportOrigin, viewportOrigin)) {
         _viewportOrigin = viewportOrigin;
-        dispatch_async(self.displayQueue, ^{
-            [self.rendererDelegate invalidateRenderSource:self];
-        });
+        [self invalidate];
     }
 }
 
 - (void)setViewportScale:(CGFloat)viewportScale {
     if (_viewportScale != viewportScale) {
         _viewportScale = viewportScale;
-        dispatch_async(self.displayQueue, ^{
-            [self.rendererDelegate invalidateRenderSource:self];
-        });
+        [self invalidate];
     }
 }
 
@@ -385,6 +383,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         self.displayQueue = dispatch_queue_create("CocoaSpice Display Queue", attr);
         attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_CONCURRENT, QOS_CLASS_USER_INTERACTIVE, 0);
         self.canvasDrawQueue = dispatch_queue_create("CocoaSpice Canvas Draw Queue", attr);
+        self.renderers = [NSMutableArray array];
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         g_signal_connect(channel, "display-primary-create",
                          G_CALLBACK(cs_primary_create), (__bridge void *)self);
@@ -585,12 +584,11 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
             }
 #endif
             // hold a read lock on the concurrent draw queue
-            [self.rendererDelegate renderSouce:self
-                                    copyBuffer:self.canvasBuffer
-                                        region:region
-                                  sourceOffset:self.canvasBufferOffset + offset
-                             sourceBytesPerRow:self.canvasStride
-                                    completion:^(BOOL success) {
+            [self copyBuffer:self.canvasBuffer
+                      region:region
+                sourceOffset:self.canvasBufferOffset + offset
+           sourceBytesPerRow:self.canvasStride
+                  completion:^(BOOL success) {
                 dispatch_semaphore_signal(drawCompletedEvent);
             }];
         });

@@ -17,6 +17,7 @@
 #import "CocoaSpice.h"
 #import "CSChannel+Protected.h"
 #import "CSDisplay+Protected.h"
+#import "CSDisplay+Renderer_Protected.h"
 #import <glib.h>
 #import <spice-client.h>
 
@@ -43,15 +44,9 @@
 
 static void cs_cursor_invalidate(CSCursor *self)
 {
-    CSDisplay *display = self.display;
-    if (!display) {
-        return;
-    }
     // we need to synchronize with both the cursor draw queue and the display draw queue
     dispatch_async(self.cursorQueue, ^{
-        dispatch_sync(display.displayQueue, ^{
-            [self.rendererDelegate invalidateRenderSource:display];
-        });
+        [self.display invalidate];
     });
 }
 
@@ -153,20 +148,8 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     cs_cursor_set(self.channel, NULL, (__bridge void *)self);
 }
 
-- (void)setDevice:(id<MTLDevice>)device {
-    @throw [NSException exceptionWithName:NSInvalidArgumentException reason:@"setDevice: is unavailable on an CSCursor instance. Please set the device and cursor property on CSDisplay." userInfo:nil];
-}
-
 - (id<MTLDevice>)device {
     return self.display.device;
-}
-
-- (id<CSRenderSourceDelegate>)rendererDelegate {
-    return self.display.rendererDelegate;
-}
-
-- (void)setRendererDelegate:(id<CSRenderSourceDelegate>)rendererDelegate {
-    @throw [NSException exceptionWithName:NSInvalidArgumentException reason:@"setRendererDelegate: is unavailable on an CSCursor instance. Please set the rendererDelegate and cursor property on CSDisplay." userInfo:nil];
 }
 
 - (BOOL)isVisible {

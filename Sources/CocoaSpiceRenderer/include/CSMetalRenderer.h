@@ -18,15 +18,12 @@
 @import CoreGraphics;
 
 @protocol CSRenderSource;
-@protocol CSRenderSourceDelegate;
+@protocol CSRenderer;
 
 NS_ASSUME_NONNULL_BEGIN
 
 /// Simple platform independent renderer for CocoaSpice
-@interface CSRenderer : NSObject<MTKViewDelegate, CSRenderSourceDelegate>
-
-/// Render source (comes from `CSDisplay`)
-@property (nonatomic, weak, nullable) id<CSRenderSource> source;
+@interface CSMetalRenderer : NSObject<MTKViewDelegate, CSRenderer>
 
 /// Create a new renderer for a MTKView
 /// @param mtkView The MetalKit View
