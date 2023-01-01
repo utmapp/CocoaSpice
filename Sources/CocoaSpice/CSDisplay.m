@@ -514,6 +514,11 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         if (!canvasDataAligned || !canvasSize) {
             return; // it will be freed
         }
+#if TARGET_OS_SIMULATOR
+        self.canvasBuffer = [self.device newBufferWithBytes:(void *)self.canvasData
+                                                     length:canvasSize
+                                                    options:0];
+#else /* !TARGET_OS_SIMULATOR */
         // round size up to multiple of page size
         self.canvasBufferOffset = ((uintptr_t)self.canvasData - canvasDataAligned);
         canvasSize += self.canvasBufferOffset;
@@ -526,6 +531,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                                                           options:MTLResourceCPUCacheModeWriteCombined
 #endif
                                                       deallocator:nil];
+#endif /* TARGET_OS_SIMULATOR */
         [self drawRegion:visibleArea];
     });
 }
@@ -577,10 +583,16 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
             };
             NSUInteger offset = (NSUInteger)(rect.origin.y*self.canvasStride + rect.origin.x*pixelSize);
             NSUInteger totalBytes = rect.size.width*rect.size.height*pixelSize;
-#if TARGET_OS_OSX
+#if TARGET_OS_OSX || TARGET_OS_SIMULATOR
             for (NSUInteger i = 0; i < rect.size.height; i++) {
+#if TARGET_OS_SIMULATOR
+                memcpy(self.canvasBuffer.contents + offset + i*self.canvasStride,
+                       self.canvasData + offset + i*self.canvasStride,
+                       rect.size.width*pixelSize);
+#else /* !TARGET_OS_SIMULATOR */
                 [self.canvasBuffer didModifyRange:NSMakeRange(offset+i*self.canvasStride,
                                                               rect.size.width*pixelSize)];
+#endif /* TARGET_OS_SIMULATOR */
             }
 #endif
             // hold a read lock on the concurrent draw queue
