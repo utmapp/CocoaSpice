@@ -207,13 +207,9 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     SPICE_DEBUG("[CocoaSpice] %s",  __FUNCTION__);
 
     self.isGLEnabled = YES;
-    g_object_ref(channel);
     [self invalidate];
     // unblock the caller immedately
-    [CSMain.sharedInstance asyncWith:^{
-        spice_display_channel_gl_draw_done(channel);
-        g_object_unref(channel);
-    }];
+    spice_display_channel_gl_draw_done(channel);
 }
 
 #pragma mark - Properties
