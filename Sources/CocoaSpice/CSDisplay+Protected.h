@@ -43,16 +43,4 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@interface CSDisplay (Renderer)
-
-- (void)copyBuffer:(id<MTLBuffer>)sourceBuffer
-            region:(MTLRegion)region
-      sourceOffset:(NSUInteger)sourceOffset
- sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
-        completion:(drawCompletionCallback_t)completion;
-- (void)drawWithCompletion:(drawCompletionCallback_t)completion;
-- (void)invalidate;
-
-@end
-
 NS_ASSUME_NONNULL_END

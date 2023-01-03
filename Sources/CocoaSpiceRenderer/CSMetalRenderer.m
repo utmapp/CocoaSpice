@@ -90,7 +90,6 @@ NS_ASSUME_NONNULL_END
 
 @property (nonatomic) dispatch_queue_t rendererQueue;
 @property (nonatomic, nullable) _CSRendererSourceData *sourceData;
-@property (nonatomic) id<MTLCommandBuffer> currentCommandBuffer;
 
 @end
 
@@ -166,8 +165,6 @@ NS_ASSUME_NONNULL_END
 
         // Create the command queue
         _commandQueue = [_device newCommandQueue];
-        self.currentCommandBuffer = [_commandQueue commandBuffer];
-        self.currentCommandBuffer.label = @"Renderer Command Buffer";
         
         // Sampler
         [self _initializeUpscaler:MTLSamplerMinMagFilterLinear downscaler:MTLSamplerMinMagFilterLinear];
@@ -247,22 +244,22 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     
     // synchronize with rendererQueue in order to access currentCommandBuffer
     dispatch_sync(self.rendererQueue, ^{
-        id<MTLCommandBuffer> currentCommandBuffer = self.currentCommandBuffer;
-        
-        // create a new command buffer for future commands
-        self.currentCommandBuffer = [_commandQueue commandBuffer];
-        self.currentCommandBuffer.label = @"Renderer Command Buffer";
+        id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+        commandBuffer.label = @"Renderer Command Buffer";
         
         if (self.sourceData.isVisible) {
-            [self _renderCommand:currentCommandBuffer
+            [self _renderCommand:commandBuffer
                           source:self.sourceData
             renderPassDescriptor:renderPassDescriptor];
             
-            [currentCommandBuffer presentDrawable:currentDrawable];
+            [commandBuffer presentDrawable:currentDrawable];
         }
 
         // Finalize rendering here & push the command buffer to the GPU
-        [currentCommandBuffer commit];
+        [commandBuffer commit];
+        
+        // clear buffer
+        self.sourceData = nil;
     });
 }
 
@@ -271,12 +268,13 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
              region:(MTLRegion)region
        sourceOffset:(NSUInteger)sourceOffset
   sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
-         completion:(drawCompletionCallback_t)completion {
+         completion:(copyCompletionCallback_t)completion {
     
     _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource];
     
     dispatch_async(self.rendererQueue, ^{
-        id<MTLCommandBuffer> commandBuffer = self.currentCommandBuffer;
+        id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+        commandBuffer.label = @"Blit Command Buffer";
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
         blitEncoder.label = @"Renderer Canvas Updates";
         
@@ -293,23 +291,10 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
         [blitEncoder endEncoding];
         
         [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
-            completion(YES);
+            completion();
         }];
         
-        self.sourceData = sourceData;
-    });
-}
-
-- (void)renderSource:(id<CSRenderSource>)renderSource drawWithCompletion:(drawCompletionCallback_t)completion {
-    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource];
-    
-    NSAssert(sourceData.isVisible, @"Should not be called if we are not visible!");
-    dispatch_async(self.rendererQueue, ^{
-        id<MTLCommandBuffer> commandBuffer = self.currentCommandBuffer;
-        
-        [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
-            completion(YES);
-        }];
+        [commandBuffer commit];
         
         self.sourceData = sourceData;
     });

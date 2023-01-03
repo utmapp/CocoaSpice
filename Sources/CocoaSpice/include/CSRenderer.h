@@ -21,7 +21,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef void (^drawCompletionCallback_t)(BOOL success);
+typedef void (^copyCompletionCallback_t)(void);
 
 @protocol CSRenderer <NSObject>
 
@@ -41,15 +41,7 @@ typedef void (^drawCompletionCallback_t)(BOOL success);
              region:(MTLRegion)region
        sourceOffset:(NSUInteger)sourceOffset
   sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
-         completion:(drawCompletionCallback_t)completion;
-
-/// Mark source pending to be rendered with a callback when rendered
-///
-/// Source must be visible!
-/// - Parameters:
-///   - renderSource: Source to render
-///   - completion: Block to run after the texture is rendered
-- (void)renderSource:(id<CSRenderSource>)renderSource drawWithCompletion:(drawCompletionCallback_t)completion;
+         completion:(copyCompletionCallback_t)completion;
 
 /// Mark source pending to be rendered
 /// - Parameters:

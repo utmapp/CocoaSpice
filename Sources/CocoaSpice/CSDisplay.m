@@ -208,9 +208,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
     self.isGLEnabled = YES;
     g_object_ref(channel);
-    [self drawWithCompletion:^(BOOL success) {
-        SPICE_DEBUG("[CocoaSpice] %s: GL rendering done with success:%d", __FUNCTION__, success);
-    }];
+    [self invalidate];
     // unblock the caller immedately
     [CSMain.sharedInstance asyncWith:^{
         spice_display_channel_gl_draw_done(channel);
@@ -600,7 +598,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                       region:region
                 sourceOffset:self.canvasBufferOffset + offset
            sourceBytesPerRow:self.canvasStride
-                  completion:^(BOOL success) {
+                  completion:^ {
                 dispatch_semaphore_signal(drawCompletedEvent);
             }];
         });
