@@ -501,7 +501,6 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         textureDescriptor.width = visibleArea.size.width;
         textureDescriptor.height = visibleArea.size.height;
         textureDescriptor.usage = MTLTextureUsageShaderRead;
-        textureDescriptor.storageMode = MTLStorageModePrivate;
         self.canvasTexture = [self.device newTextureWithDescriptor:textureDescriptor];
         uintptr_t canvasDataAligned = trunc_page_kernel((uintptr_t)self.canvasData);
         NSUInteger canvasSize = self.canvasStride * self.canvasArea.size.height;
