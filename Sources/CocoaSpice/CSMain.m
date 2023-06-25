@@ -124,7 +124,10 @@ void *spice_main_loop(void *args) {
         if (!self.running) {
             pthread_t spiceThread;
             spice_util_set_main_context(_main_context);
-            if (pthread_create(&spiceThread, NULL, &spice_main_loop, (__bridge_retained void *)self) != 0) {
+            pthread_attr_t qosAttribute;
+            pthread_attr_init(&qosAttribute);
+            pthread_attr_set_qos_class_np(&qosAttribute, QOS_CLASS_USER_INTERACTIVE, 0);
+            if (pthread_create(&spiceThread, &qosAttribute, &spice_main_loop, (__bridge_retained void *)self) != 0) {
                 return NO;
             }
             self.running = YES;
@@ -162,12 +165,13 @@ static gboolean callBlockInMainContext(gpointer data) {
     if (g_main_context_is_owner(self.glibMainContext)) {
         block();
     } else {
-        dispatch_semaphore_t runEvent = dispatch_semaphore_create(0);
+        dispatch_group_t mainContextGroup = dispatch_group_create();
+        dispatch_group_enter(mainContextGroup);
         [self asyncWith:^{
             block();
-            dispatch_semaphore_signal(runEvent);
+            dispatch_group_leave(mainContextGroup);
         }];
-        dispatch_semaphore_wait(runEvent, DISPATCH_TIME_FOREVER);
+        dispatch_group_wait(mainContextGroup, DISPATCH_TIME_FOREVER);
     }
 }
 
