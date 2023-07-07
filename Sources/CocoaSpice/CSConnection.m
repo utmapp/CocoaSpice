@@ -332,7 +332,7 @@ static void cs_connection_destroy(SpiceSession *session,
 }
 
 - (void)setUnixSocketURL:(NSURL *)unixSocketURL {
-    g_object_set(self.spiceSession, "unix-path", unixSocketURL.path.UTF8String, NULL);
+    g_object_set(self.spiceSession, "unix-path", unixSocketURL.relativePath.UTF8String, NULL);
     _unixSocketURL = unixSocketURL;
 }
 
