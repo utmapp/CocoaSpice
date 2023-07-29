@@ -18,6 +18,8 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+typedef void (^LogHandler_t)(NSString *line);
+
 /// SPICE client lifetime management
 ///
 /// To use the SPICE client GTK library, you must call `-spiceStart` which spawns a worker thread.
@@ -42,9 +44,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Use this to get a pointer to this singleton
 @property (class, nonatomic, readonly) CSMain *sharedInstance NS_SWIFT_NAME(shared);
 
+/// If set, SPICE logging will be sent to this callback
+@property (nonatomic, nullable) LogHandler_t logHandler;
+
 - (instancetype)init NS_UNAVAILABLE;
 
-/// Set verbose logging to stderr
+/// Set verbose logging
 /// @param enabled Enable debug logging
 - (void)spiceSetDebug:(BOOL)enabled;
 

@@ -37,6 +37,7 @@ static void logHandler(const gchar *log_domain, GLogLevelFlags log_level,
 {
     GDateTime *now;
     gchar *dateTimeStr;
+    LogHandler_t handler = (__bridge LogHandler_t)user_data;
     
     char* levelStr = "UNKNOWN";
     if (log_level & G_LOG_LEVEL_ERROR) {
@@ -56,9 +57,16 @@ static void logHandler(const gchar *log_domain, GLogLevelFlags log_level,
     now = g_date_time_new_now_local();
     dateTimeStr = g_date_time_format(now, "%Y-%m-%d %T");
     
-    fprintf(stdout, "%s,%03d %s %s-%s\n", dateTimeStr,
-            g_date_time_get_microsecond(now) / 1000, levelStr,
-            log_domain, message);
+    if (handler) {
+        NSString *line = [NSString stringWithFormat:@"%s,%03d %s %s-%s\n", dateTimeStr,
+                          g_date_time_get_microsecond(now) / 1000, levelStr,
+                          log_domain, message];
+        handler(line);
+    } else {
+        fprintf(stdout, "%s,%03d %s %s-%s\n", dateTimeStr,
+                g_date_time_get_microsecond(now) / 1000, levelStr,
+                log_domain, message);
+    }
     
     g_date_time_unref(now);
     g_free(dateTimeStr);
@@ -92,6 +100,11 @@ void *spice_main_loop(void *args) {
     return _main_context;
 }
 
+- (void)setLogHandler:(LogHandler_t)newLogHandler {
+    _logHandler = newLogHandler;
+    g_log_set_default_handler(logHandler, (__bridge gpointer)newLogHandler);
+}
+
 - (id)init {
     self = [super init];
     if (self) {
@@ -102,6 +115,7 @@ void *spice_main_loop(void *args) {
             g_main_context_unref(_main_context);
             return nil;
         }
+        g_log_set_default_handler(logHandler, NULL);
     }
     return self;
 }
@@ -110,13 +124,11 @@ void *spice_main_loop(void *args) {
     [self spiceStop];
     g_main_loop_unref(_main_loop);
     g_main_context_unref(_main_context);
+    g_log_set_default_handler(g_log_default_handler, NULL);
 }
 
 - (void)spiceSetDebug:(BOOL)enabled {
     spice_util_set_debug(enabled);
-    if (enabled) {
-        g_log_set_handler(NULL, G_LOG_LEVEL_MASK, logHandler, NULL);
-    }
 }
 
 - (BOOL)spiceStart {
