@@ -37,8 +37,14 @@ static void logHandler(const gchar *log_domain, GLogLevelFlags log_level,
 {
     GDateTime *now;
     gchar *dateTimeStr;
+    const char *glog_domains = g_getenv("G_MESSAGES_DEBUG");
     LogHandler_t handler = (__bridge LogHandler_t)user_data;
-    
+
+    if (!spice_util_get_debug() &&
+        ((log_level & (G_LOG_LEVEL_INFO | G_LOG_LEVEL_DEBUG)) != 0)) {
+        return;
+    }
+
     char* levelStr = "UNKNOWN";
     if (log_level & G_LOG_LEVEL_ERROR) {
         levelStr = "ERROR";
