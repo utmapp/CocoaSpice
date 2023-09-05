@@ -31,6 +31,8 @@ typedef struct {
     gpointer callback;
 } usbManagerData;
 
+static NSString *const kCSUSBManagerDomain = @"org.spice-space.usb";
+
 @interface CSUSBManager ()
 
 @property (nonatomic, readwrite, nonnull) SpiceUsbDeviceManager *usbDeviceManager;
@@ -40,6 +42,11 @@ typedef struct {
 @implementation CSUSBManager
 
 #pragma mark - Signal callbacks
+
+static NSError *errorWithUTF8String(const char *string) {
+    NSString *description = [NSString stringWithUTF8String:string];
+    return [NSError errorWithDomain:kCSUSBManagerDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: description}];
+}
 
 static void cs_device_error(SpiceUsbDeviceManager *manager,
                             SpiceUsbDevice        *device,
@@ -81,10 +88,10 @@ static void cs_connect_cb(GObject *gobject, GAsyncResult *res, gpointer data)
 
     spice_usb_device_manager_connect_device_finish(manager, res, &err);
     if (err) {
-        callback(NO, [NSString stringWithUTF8String:err->message]);
+        callback(errorWithUTF8String(err->message));
         g_error_free(err);
     } else {
-        callback(YES, nil);
+        callback(nil);
     }
 }
 
@@ -96,10 +103,10 @@ static void cs_disconnect_cb(GObject *gobject, GAsyncResult *res, gpointer data)
 
     spice_usb_device_manager_disconnect_device_finish(manager, res, &err);
     if (err) {
-        callback(NO, [NSString stringWithUTF8String:err->message]);
+        callback(errorWithUTF8String(err->message));
         g_error_free(err);
     } else {
-        callback(YES, nil);
+        callback(nil);
     }
 }
 

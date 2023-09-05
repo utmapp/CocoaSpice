@@ -18,7 +18,7 @@
 #import "CSUSBManagerDelegate.h"
 
 /// Completion handler for connect and disconnect calls
-typedef void (^CSUSBManagerConnectionCallback)(BOOL, NSString * _Nullable);
+typedef void (^CSUSBManagerConnectionCallback)(NSError * _Nullable);
 
 NS_ASSUME_NONNULL_BEGIN
 
