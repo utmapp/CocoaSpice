@@ -49,6 +49,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Set/get the host socket file. Will be used next time `connect` is called and takes precedence over host/port
 @property (nonatomic, nullable, copy) NSURL *unixSocketURL;
 
+/// If true, all channels will be connected over TLS. Otherwise, no channels will be connected over TLS.
+@property (nonatomic, readonly) BOOL isTLSOnly;
+
+/// Set/get the TLS public key (SubjectPublicKey format) to check the server against. Will be used next time `connect` is called only on TLS channels.
+@property (nonatomic, nullable) NSData *tlsServerPublicKey;
+
 /// When enabled, gstreamer is used to provide audio input/output. Defaults to disabled
 @property (nonatomic, assign) BOOL audioEnabled;
 
@@ -58,6 +64,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// @param host Hostname string, can be an IPv4 address, IPv4 address, or domain name to resolve with DNS
 /// @param port Port running SPICE server
 - (instancetype)initWithHost:(NSString *)host port:(NSString *)port NS_DESIGNATED_INITIALIZER;
+
+/// Create a new TCP connection with TLS support (on all channels)
+/// @param host Hostname string, can be an IPv4 address, IPv4 address, or domain name to resolve with DNS
+/// @param tlsPort Port running SPICE server (with TLS)
+/// @param serverPublicKey Public key of the server to check against
+- (instancetype)initWithHost:(NSString *)host tlsPort:(NSString *)tlsPort serverPublicKey:(NSData *)serverPublicKey NS_DESIGNATED_INITIALIZER;
 
 /// Create a new Unix socket connection
 /// @param socketFile Socket file

@@ -31,6 +31,7 @@
 
 @interface CSConnection ()
 
+@property (nonatomic, readwrite) BOOL isTLSOnly;
 @property (nonatomic, readwrite) CSSession *session;
 @property (nonatomic, readwrite) CSUSBManager *usbManager;
 @property (nonatomic, readwrite) NSMutableArray<CSChannel *> *mutableChannels;
@@ -320,12 +321,12 @@ static void cs_connection_destroy(SpiceSession *session,
 }
 
 - (void)setPort:(NSString *)port {
-    g_object_set(self.spiceSession, "port", [port UTF8String], NULL);
+    g_object_set(self.spiceSession, self.isTLSOnly ? "tls-port" : "port", [port UTF8String], NULL);
 }
 
 - (NSString *)port {
     gchar *strhost;
-    g_object_get(self.spiceSession, "port", &strhost, NULL);
+    g_object_get(self.spiceSession, self.isTLSOnly ? "tls-port" : "port", &strhost, NULL);
     NSString *nshost = [NSString stringWithUTF8String:strhost];
     g_free(strhost);
     return nshost;
@@ -334,6 +335,24 @@ static void cs_connection_destroy(SpiceSession *session,
 - (void)setUnixSocketURL:(NSURL *)unixSocketURL {
     g_object_set(self.spiceSession, "unix-path", unixSocketURL.relativePath.UTF8String, NULL);
     _unixSocketURL = unixSocketURL;
+}
+
+- (void)setTlsServerPublicKey:(NSData *)tlsServerPublicKey {
+    GByteArray *array = NULL;
+
+    if (!tlsServerPublicKey) {
+        goto end;
+    }
+    array = g_byte_array_new();
+    [tlsServerPublicKey enumerateByteRangesUsingBlock:^(const void * _Nonnull bytes, NSRange byteRange, BOOL * _Nonnull stop) {
+        g_byte_array_append(array, bytes, (guint)byteRange.length);
+    }];
+    _tlsServerPublicKey = tlsServerPublicKey;
+end:
+    g_object_set(self.spiceSession, "pubkey", array, NULL);
+    if (array) {
+        g_byte_array_unref(array);
+    }
 }
 
 - (NSArray<CSChannel *> *)channels {
@@ -354,6 +373,7 @@ static void cs_connection_destroy(SpiceSession *session,
     SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
     SpiceSession *spiceSession = self.spiceSession;
     gpointer data = (__bridge void *)self;
+
     [CSMain.sharedInstance syncWith:^{
         g_signal_handlers_disconnect_by_func(spiceSession, G_CALLBACK(cs_channel_new), data);
         g_signal_handlers_disconnect_by_func(spiceSession, G_CALLBACK(cs_channel_destroy), data);
@@ -392,6 +412,21 @@ static void cs_connection_destroy(SpiceSession *session,
         self.spiceSession = spice_session_new();
         self.host = host;
         self.port = port;
+        [self finishInit];
+    }
+    return self;
+}
+
+- (instancetype)initWithHost:(NSString *)host tlsPort:(NSString *)tlsPort serverPublicKey:(NSData *)serverPublicKey {
+    gchar *channels[] = { "all", NULL };
+
+    if (self = [super init]) {
+        self.spiceSession = spice_session_new();
+        self.isTLSOnly = YES;
+        self.host = host;
+        self.port = tlsPort;
+        self.tlsServerPublicKey = serverPublicKey;
+        g_object_set(self.spiceSession, "secure-channels", channels, NULL);
         [self finishInit];
     }
     return self;
