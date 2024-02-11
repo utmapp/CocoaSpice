@@ -355,6 +355,21 @@ end:
     }
 }
 
+- (NSString *)password {
+    gchar *value;
+    g_object_get(self.spiceSession, "password", &value, NULL);
+    if (!value) {
+        return nil;
+    }
+    NSString *nsvalue = [NSString stringWithUTF8String:value];
+    g_free(value);
+    return nsvalue;
+}
+
+- (void)setPassword:(NSString *)password {
+    g_object_set(self.spiceSession, "password", [password UTF8String], NULL);
+}
+
 - (NSArray<CSChannel *> *)channels {
     return self.mutableChannels;
 }

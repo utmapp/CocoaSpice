@@ -55,6 +55,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Set/get the TLS public key (SubjectPublicKey format) to check the server against. Will be used next time `connect` is called only on TLS channels.
 @property (nonatomic, nullable) NSData *tlsServerPublicKey;
 
+/// If set, will attempt a SPICE ticket auth
+@property (nonatomic, nullable, copy) NSString *password;
+
 /// When enabled, gstreamer is used to provide audio input/output. Defaults to disabled
 @property (nonatomic, assign) BOOL audioEnabled;
 
