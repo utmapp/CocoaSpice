@@ -277,11 +277,6 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
     
     if (SPICE_IS_INPUTS_CHANNEL(channel)) {
         SPICE_DEBUG("zap inputs channel");
-        for (CSChannel *input in self.channels) {
-            if (input.spiceChannel == channel) {
-                [self.delegate spiceInputUnavailable:self input:(CSInput *)input];
-            }
-        }
     }
     
     if (SPICE_IS_PLAYBACK_CHANNEL(channel)) {
@@ -297,6 +292,13 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
         CSChannel* wrap = self.mutableChannels[i];
         if (wrap.spiceChannel == channel) {
             [self.mutableChannels removeObjectAtIndex:i];
+            if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
+                [self.delegate spiceDisplayDestroyed:self display:(CSDisplay *)wrap];
+            } else if (SPICE_IS_PORT_CHANNEL(channel)) {
+                [self.delegate spiceForwardedPortClosed:self port:(CSPort *)wrap];
+            } else if (SPICE_IS_INPUTS_CHANNEL(channel)) {
+                [self.delegate spiceInputUnavailable:self input:(CSInput *)wrap];
+            }
         }
     }
 }
