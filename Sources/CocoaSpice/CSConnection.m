@@ -301,13 +301,20 @@ static void cs_channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer 
             }
         }
     }
+
+    // ideally we do this in cs_connection_destroy() but because that happens so late, it opens us up
+    // to retain cycles if the caller waits for `spiceDisconnect:` to cleanup.
+    if (self.channels.count == 0) {
+        [self.delegate spiceDisconnected:self];
+    }
 }
 
 static void cs_connection_destroy(SpiceSession *session,
                                gpointer data)
 {
     CSConnection *self = (__bridge CSConnection *)data;
-    [self.delegate spiceDisconnected:self];
+    SPICE_DEBUG("spice connection destroyed");
+    // this happens pretty late--after every SpiceChannel has been deallocated
 }
 
 - (void)setHost:(NSString *)host {
