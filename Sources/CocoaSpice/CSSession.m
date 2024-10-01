@@ -158,6 +158,7 @@ static void cs_clipboard_got_from_guest(SpiceMainChannel *main, guint selection,
                                         gpointer user_data)
 {
     CSSession *self = (__bridge CSSession *)user_data;
+    char *textData;
 
     SPICE_DEBUG("clipboard got data");
     
@@ -169,7 +170,11 @@ static void cs_clipboard_got_from_guest(SpiceMainChannel *main, guint selection,
             conv = spice_dos2unix((gchar*)data, size);
             size = (guint)strlen(conv);
         }
-        NSString *string = [NSString stringWithUTF8String:(conv ? conv : (const char *)data)];
+        // original data may not be null terminated
+        textData = calloc(size + 1, sizeof(char));
+        memcpy(textData, conv ? conv : (const char *)data, size);
+        NSString *string = [NSString stringWithUTF8String:textData];
+        free(textData);
         [self.pasteboardDelegate setString:string];
         g_free(conv);
     } else if (type == VD_AGENT_CLIPBOARD_UTF8_TEXT) {
