@@ -331,9 +331,9 @@ static void cs_channel_destroy(SpiceSession *session, SpiceChannel *channel,
     [CSMain.sharedInstance syncWith:^{
         g_signal_handlers_disconnect_by_func(session, G_CALLBACK(cs_channel_new), data);
         g_signal_handlers_disconnect_by_func(session, G_CALLBACK(cs_channel_destroy), data);
+        cs_channel_destroy(session, SPICE_CHANNEL(self.main), (__bridge void *)self);
+        g_object_unref(session);
     }];
-    cs_channel_destroy(session, SPICE_CHANNEL(self.main), (__bridge void *)self);
-    g_object_unref(session);
     [[NSNotificationCenter defaultCenter] removeObserver:self
                                                     name:kCSPasteboardChangedNotification
                                                   object:nil];

@@ -417,8 +417,8 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_set_overlay), data);
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_gl_scanout), data);
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_gl_draw), data);
+        g_object_unref(channel);
     }];
-    g_object_unref(channel);
 }
 
 - (void)updateVisibleAreaWithRect:(CGRect)rect {

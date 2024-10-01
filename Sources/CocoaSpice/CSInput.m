@@ -359,7 +359,9 @@ static int cs_button_to_spice(CSInputButton button)
 }
 
 - (void)dealloc {
-    g_object_unref(self.channel);
+    [CSMain.sharedInstance syncWith:^{
+        g_object_unref(self.channel);
+    }];
 }
 
 @end

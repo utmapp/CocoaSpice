@@ -222,8 +222,8 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_move), data);
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_hide), data);
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_reset), data);
+        g_object_unref(channel);
     }];
-    g_object_unref(channel);
 }
 
 #pragma mark - Cursor drawing

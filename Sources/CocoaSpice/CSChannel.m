@@ -15,13 +15,16 @@
 //
 
 #import "CSChannel+Protected.h"
+#import "CSMain.h"
 #import <glib-object.h>
 
 @implementation CSChannel
 
 - (void)setSpiceMain:(SpiceMainChannel *)spiceMain {
     if (_spiceMain) {
-        g_object_unref(_spiceMain);
+        [CSMain.sharedInstance syncWith:^{
+            g_object_unref(_spiceMain);
+        }];
     }
     _spiceMain = spiceMain ? g_object_ref(spiceMain) : NULL;
 }
@@ -34,7 +37,9 @@
 
 - (void)dealloc {
     if (_spiceMain) {
-        g_object_unref(_spiceMain);
+        [CSMain.sharedInstance syncWith:^{
+            g_object_unref(_spiceMain);
+        }];
     }
 }
 

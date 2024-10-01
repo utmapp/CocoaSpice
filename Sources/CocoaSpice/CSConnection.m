@@ -385,7 +385,9 @@ end:
 
 - (void)setSpiceMain:(SpiceMainChannel *)spiceMain {
     if (_spiceMain) {
-        g_object_unref(_spiceMain);
+        [CSMain.sharedInstance syncWith:^{
+            g_object_unref(_spiceMain);
+        }];
     }
     _spiceMain = spiceMain ? g_object_ref(spiceMain) : NULL;
     for (CSChannel *channel in self.channels) {
@@ -402,15 +404,15 @@ end:
         g_signal_handlers_disconnect_by_func(spiceSession, G_CALLBACK(cs_channel_new), data);
         g_signal_handlers_disconnect_by_func(spiceSession, G_CALLBACK(cs_channel_destroy), data);
         g_signal_handlers_disconnect_by_func(spiceSession, G_CALLBACK(cs_connection_destroy), data);
+        for (NSInteger i = self.channels.count-1; i >= 0; i--) {
+            CSChannel* wrap = self.channels[i];
+            cs_channel_destroy(spiceSession, wrap.spiceChannel, data);
+        }
+        if (self.spiceMain) {
+            cs_channel_destroy(spiceSession, SPICE_CHANNEL(self.spiceMain), data);
+        }
+        g_object_unref(spiceSession);
     }];
-    for (NSInteger i = self.channels.count-1; i >= 0; i--) {
-        CSChannel* wrap = self.channels[i];
-        cs_channel_destroy(spiceSession, wrap.spiceChannel, data);
-    }
-    if (self.spiceMain) {
-        cs_channel_destroy(spiceSession, SPICE_CHANNEL(self.spiceMain), data);
-    }
-    g_object_unref(spiceSession);
 }
 
 - (void)finishInit {

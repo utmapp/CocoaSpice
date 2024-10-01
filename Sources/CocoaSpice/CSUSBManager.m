@@ -209,8 +209,8 @@ static gboolean cs_call_manager(gpointer user_data)
         g_signal_handlers_disconnect_by_func(usbDeviceManager, G_CALLBACK(cs_device_error), data);
         g_signal_handlers_disconnect_by_func(usbDeviceManager, G_CALLBACK(cs_device_added), data);
         g_signal_handlers_disconnect_by_func(usbDeviceManager, G_CALLBACK(cs_device_removed), data);
+        g_object_unref(usbDeviceManager);
     }];
-    g_object_unref(usbDeviceManager);
 }
 
 #pragma mark - Methods

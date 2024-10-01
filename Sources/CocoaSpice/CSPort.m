@@ -106,8 +106,8 @@ static void cs_port_write_cb(GObject *source_object,
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_port_opened), data);
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_port_data), data);
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_port_event), data);
+        g_object_unref(channel);
     }];
-    g_object_unref(channel);
 }
 
 #pragma mark - Implementation
