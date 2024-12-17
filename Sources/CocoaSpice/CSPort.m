@@ -71,7 +71,7 @@ static void cs_port_write_cb(GObject *source_object,
                              GAsyncResult *res,
                              gpointer user_data)
 {
-    CSPort *self = (__bridge CSPort *)user_data;
+    CSPort *self = (__bridge_transfer CSPort *)user_data;
     SpicePortChannel *port = SPICE_PORT_CHANNEL(source_object);
     GError *error = NULL;
 
@@ -150,7 +150,7 @@ static void cs_port_write_cb(GObject *source_object,
 
 - (void)writeData:(NSData *)data {
     [CSMain.sharedInstance asyncWith:^{
-        spice_port_channel_write_async(self.channel, data.bytes, data.length, NULL, cs_port_write_cb, (__bridge void *)self);
+        spice_port_channel_write_async(self.channel, data.bytes, data.length, NULL, cs_port_write_cb, (__bridge_retained void *)self);
     }];
 }
 
