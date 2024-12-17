@@ -46,7 +46,7 @@ static void cs_port_opened(SpiceChannel *channel, GParamSpec *pspec,
 static void cs_port_data(SpicePortChannel *port,
                          gpointer data, int size, gpointer user)
 {
-    CSPort *self = (__bridge CSPort *)user;
+    CSPort *self = (__bridge_transfer CSPort *)user;
     id<CSPortDelegate> delegate = self.delegate;
     NSData *nsdata = [NSData dataWithBytes:data length:size];
     
@@ -150,7 +150,7 @@ static void cs_port_write_cb(GObject *source_object,
 
 - (void)writeData:(NSData *)data {
     [CSMain.sharedInstance asyncWith:^{
-        spice_port_channel_write_async(self.channel, data.bytes, data.length, NULL, cs_port_write_cb, (__bridge void *)self);
+        spice_port_channel_write_async(self.channel, data.bytes, data.length, NULL, cs_port_write_cb, (__bridge_retained void *)self);
     }];
 }
 
