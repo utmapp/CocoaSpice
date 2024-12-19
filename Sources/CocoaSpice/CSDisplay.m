@@ -444,11 +444,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 - (void)rebuildScanoutTextureWithScanout:(SpiceGlScanout)scanout {
     IOSurfaceID iosurfaceid = 0;
     IOSurfaceRef iosurface = NULL;
-    if (read(scanout.fd, &iosurfaceid, sizeof(iosurfaceid)) != sizeof(iosurfaceid)) {
-        SPICE_DEBUG("[CocoaSpice] Failed to read scanout fd: %d", scanout.fd);
-        perror("read");
-        return;
-    }
+
     // check for POLLHUP which indicates the surface ID is stale as the sender has deallocated the surface
     struct pollfd ufd = {0};
     ufd.fd = scanout.fd;
@@ -458,11 +454,16 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         perror("poll");
         return;
     }
-    if ((ufd.revents & POLLHUP) != 0) {
-        SPICE_DEBUG("[CocoaSpice] Stale surface id %x read from fd %d, ignoring", iosurfaceid, scanout.fd);
+    if ((ufd.revents & (POLLHUP | POLLIN)) != POLLIN) {
+        SPICE_DEBUG("[CocoaSpice] Ignoring scanout from stale fd %d", scanout.fd);
         return;
     }
-    
+
+    if (read(scanout.fd, &iosurfaceid, sizeof(iosurfaceid)) != sizeof(iosurfaceid)) {
+        SPICE_DEBUG("[CocoaSpice] Failed to read scanout fd: %d", scanout.fd);
+        perror("read");
+        return;
+    }
     if ((iosurface = IOSurfaceLookup(iosurfaceid)) == NULL) {
         SPICE_DEBUG("[CocoaSpice] Failed to lookup surface: %d", iosurfaceid);
         return;
