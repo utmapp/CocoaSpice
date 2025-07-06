@@ -15,6 +15,7 @@
 //
 
 @import simd;
+@import MetalKit;
 
 #import "CSMetalRenderer.h"
 #import "CSRenderSource.h"
@@ -405,9 +406,5 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
                       vertexStart:0
                       vertexCount:numVerticies];
 }
-
-@end
-
-@implementation CSMTKView
 
 @end

@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#import "CSMTKView.h"
+@import MetalKit;
 @import CoreGraphics;
 
 @protocol CSRenderSource;
