@@ -32,6 +32,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// USB product if available
 @property (nonatomic, nullable, readonly) NSString *usbProductName;
 
+/// USB device serial if available
+@property (nonatomic, nullable, readonly) NSString *usbSerial;
+
 /// USB vendor ID
 @property (nonatomic, readonly) NSInteger usbVendorId;
 
@@ -52,9 +55,10 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// 1. USB manufacturer
 /// 2. USB product
-/// 3. USB vendor id and product id
-/// 4. USB bus number
-/// 5. USB address
+/// 3. USB device serial
+/// 4. USB vendor id and product id
+/// 5. USB bus number
+/// 6. USB address
 ///
 /// @param usbDevice Other device
 /// @returns true if `usbDevice` is equal to this one

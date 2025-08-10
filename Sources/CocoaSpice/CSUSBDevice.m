@@ -22,6 +22,7 @@
 @interface CSUSBDevice ()
 
 @property (nonatomic, readwrite, nonnull) SpiceUsbDevice *device;
+@property (nonatomic) BOOL hasReadDescriptors;
 
 @end
 
@@ -29,6 +30,7 @@
 
 @synthesize usbManufacturerName = _usbManufacturerName;
 @synthesize usbProductName = _usbProductName;
+@synthesize usbSerial = _usbSerial;
 @synthesize usbVendorId = _usbVendorId;
 @synthesize usbProductId = _usbProductId;
 
@@ -56,6 +58,7 @@
     }
     _usbVendorId = ddesc.idVendor;
     _usbProductId = ddesc.idProduct;
+    self.hasReadDescriptors = YES;
     if (libusb_open(dev, &handle) == 0) {
         unsigned char name[64] = { 0 };
         libusb_get_string_descriptor_ascii(handle,
@@ -71,33 +74,47 @@
         if (name[0] != '\0') {
             _usbManufacturerName = [NSString stringWithCString:(char *)name encoding:NSASCIIStringEncoding];
         }
+        name[0] = '\0';
+        libusb_get_string_descriptor_ascii(handle,
+                                           ddesc.iSerialNumber,
+                                           name, sizeof(name));
+        if (name[0] != '\0') {
+            _usbSerial = [NSString stringWithCString:(char *)name encoding:NSASCIIStringEncoding];
+        }
         libusb_close(handle);
     }
 }
 
 - (NSString *)usbManufacturerName {
-    if (!_usbManufacturerName) {
+    if (!self.hasReadDescriptors) {
         [self readDescriptors];
     }
     return _usbManufacturerName;
 }
 
 - (NSString *)usbProductName {
-    if (!_usbProductName) {
+    if (!self.hasReadDescriptors) {
         [self readDescriptors];
     }
     return _usbProductName;
 }
 
+- (NSString *)usbSerial {
+    if (!self.hasReadDescriptors) {
+        [self readDescriptors];
+    }
+    return _usbSerial;
+}
+
 - (NSInteger)usbVendorId {
-    if (!_usbVendorId) {
+    if (!self.hasReadDescriptors) {
         [self readDescriptors];
     }
     return _usbVendorId;
 }
 
 - (NSInteger)usbProductId {
-    if (!_usbProductId) {
+    if (!self.hasReadDescriptors) {
         [self readDescriptors];
     }
     return _usbProductId;
@@ -132,8 +149,16 @@
 }
 
 - (BOOL)isEqualToUSBDevice:(CSUSBDevice *)usbDevice {
-    NSString *description = self.description;
-    return description.length > 0 && [description isEqualToString:usbDevice.description];
+    if (self.usbBusNumber == usbDevice.usbBusNumber &&
+        self.usbPortNumber == usbDevice.usbPortNumber &&
+        self.usbVendorId == usbDevice.usbVendorId &&
+        self.usbProductId == usbDevice.usbProductId &&
+        [self.usbManufacturerName isEqualToString:usbDevice.usbManufacturerName] &&
+        [self.usbProductName isEqualToString:usbDevice.usbProductName] &&
+        [self.usbSerial isEqualToString:usbDevice.usbSerial]) {
+        return YES;
+    }
+    return NO;
 }
 
 - (BOOL)isEqual:(id)object {
