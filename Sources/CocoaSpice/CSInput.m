@@ -217,7 +217,7 @@ static int cs_button_to_spice(CSInputButton button)
     return spice;
 }
 
-- (void)sendMouseMotion:(CSInputButton)button relativePoint:(CGPoint)relativePoint forMonitorID:(NSInteger)monitorID {
+- (void)sendMouseMotion:(CSInputButton)buttonMask relativePoint:(CGPoint)relativePoint forMonitorID:(NSInteger)monitorID {
     SpiceInputsChannel *inputs = self.channel;
     
     if (!inputs) {
@@ -232,16 +232,16 @@ static int cs_button_to_spice(CSInputButton button)
             SPICE_DEBUG("[CocoaSpice] %s:%d ignoring mouse motion event since we are in client mode", __FUNCTION__, __LINE__);
         } else {
             spice_inputs_channel_motion(inputs, relativePoint.x, relativePoint.y,
-                                        cs_button_mask_to_spice(button));
+                                        cs_button_mask_to_spice(buttonMask));
         }
     }];
 }
 
-- (void)sendMouseMotion:(CSInputButton)button relativePoint:(CGPoint)relativePoint {
-    [self sendMouseMotion:button relativePoint:relativePoint forMonitorID:0];
+- (void)sendMouseMotion:(CSInputButton)buttonMask relativePoint:(CGPoint)relativePoint {
+    [self sendMouseMotion:buttonMask relativePoint:relativePoint forMonitorID:0];
 }
 
-- (void)sendMousePosition:(CSInputButton)button absolutePoint:(CGPoint)absolutePoint forMonitorID:(NSInteger)monitorID {
+- (void)sendMousePosition:(CSInputButton)buttonMask absolutePoint:(CGPoint)absolutePoint forMonitorID:(NSInteger)monitorID {
     SpiceInputsChannel *inputs = self.channel;
     
     if (!inputs) {
@@ -256,18 +256,18 @@ static int cs_button_to_spice(CSInputButton button)
             SPICE_DEBUG("[CocoaSpice] %s:%d ignoring mouse position event since we are in server mode", __FUNCTION__, __LINE__);
         } else {
             spice_inputs_channel_position(inputs, absolutePoint.x, absolutePoint.y, (int)monitorID,
-                                          cs_button_mask_to_spice(button));
+                                          cs_button_mask_to_spice(buttonMask));
         }
     }];
 }
 
-- (void)sendMousePosition:(CSInputButton)button absolutePoint:(CGPoint)absolutePoint {
-    [self sendMousePosition:button absolutePoint:absolutePoint forMonitorID:0];
+- (void)sendMousePosition:(CSInputButton)buttonMask absolutePoint:(CGPoint)absolutePoint {
+    [self sendMousePosition:buttonMask absolutePoint:absolutePoint forMonitorID:0];
 }
 
-- (void)sendMouseScroll:(CSInputScroll)type button:(CSInputButton)button dy:(CGFloat)dy {
+- (void)sendMouseScroll:(CSInputScroll)type buttonMask:(CSInputButton)buttonMask dy:(CGFloat)dy {
     SpiceInputsChannel *inputs = self.channel;
-    gint button_state = cs_button_mask_to_spice(button);
+    gint button_state = cs_button_mask_to_spice(buttonMask);
     
     SPICE_DEBUG("%s", __FUNCTION__);
     
@@ -308,7 +308,7 @@ static int cs_button_to_spice(CSInputButton button)
     }];
 }
 
-- (void)sendMouseButton:(CSInputButton)button pressed:(BOOL)pressed {
+- (void)sendMouseButton:(CSInputButton)button mask:(CSInputButton)mask pressed:(BOOL)pressed {
     SpiceInputsChannel *inputs = self.channel;
     SPICE_DEBUG("%s %s: button %u", __FUNCTION__,
                   pressed ? "press" : "release",
@@ -325,11 +325,11 @@ static int cs_button_to_spice(CSInputButton button)
         if (pressed) {
             spice_inputs_channel_button_press(inputs,
                                               cs_button_to_spice(button),
-                                              cs_button_mask_to_spice(button));
+                                              cs_button_mask_to_spice(mask));
         } else {
             spice_inputs_channel_button_release(inputs,
                                                 cs_button_to_spice(button),
-                                                cs_button_mask_to_spice(button));
+                                                cs_button_mask_to_spice(mask));
         }
     }];
 }

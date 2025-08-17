@@ -118,42 +118,43 @@ NS_ASSUME_NONNULL_BEGIN
 /// Sends a relative mouse movement event to the main monitor
 ///
 /// Must use `-requestMouseMode:` to set server mode to `true` before calling this.
-/// @param button Mask of mouse buttons pressed
+/// @param buttonMask Mask of mouse buttons pressed
 /// @param relativePoint Delta of previous mouse coordinates
-- (void)sendMouseMotion:(CSInputButton)button relativePoint:(CGPoint)relativePoint;
+- (void)sendMouseMotion:(CSInputButton)buttonMask relativePoint:(CGPoint)relativePoint;
 
 /// Sends a relative mouse movement event
 ///
 /// Must use `-requestMouseMode:` to set server mode to `true` before calling this. Otherwise, the event is ignored.
-/// @param button Mask of mouse buttons pressed
+/// @param buttonMask Mask of mouse buttons pressed
 /// @param relativePoint Delta of previous mouse coordinates
 /// @param monitorID Monitor where the mouse event is sent to
-- (void)sendMouseMotion:(CSInputButton)button relativePoint:(CGPoint)relativePoint forMonitorID:(NSInteger)monitorID;
+- (void)sendMouseMotion:(CSInputButton)buttonMask relativePoint:(CGPoint)relativePoint forMonitorID:(NSInteger)monitorID;
 
 /// Sends an absolute mouse movement event (if supported) to the main monitor
 ///
 /// Must use `-requestMouseMode:` to set server mode to `false` before calling this. Otherwise, the event is ignored.
-/// @param button Mask of mouse buttons pressed
+/// @param buttonMask Mask of mouse buttons pressed
 /// @param absolutePoint Absolute position of mouse coordinates
-- (void)sendMousePosition:(CSInputButton)button absolutePoint:(CGPoint)absolutePoint;
+- (void)sendMousePosition:(CSInputButton)buttonMask absolutePoint:(CGPoint)absolutePoint;
 
 /// Sends an absolute mouse movement event (if supported)
 ///
-/// @param button Mask of mouse buttons pressed
+/// @param buttonMask Mask of mouse buttons pressed
 /// @param absolutePoint Absolute position of mouse coordinates
 /// @param monitorID Monitor where the mouse event is sent to
-- (void)sendMousePosition:(CSInputButton)button absolutePoint:(CGPoint)absolutePoint forMonitorID:(NSInteger)monitorID;
+- (void)sendMousePosition:(CSInputButton)buttonMask absolutePoint:(CGPoint)absolutePoint forMonitorID:(NSInteger)monitorID;
 
 /// Sends a mouse scroll event
 /// @param type Scroll event type
-/// @param button Mask of mouse buttons pressed
+/// @param buttonMask Mask of mouse buttons pressed
 /// @param dy If `type` is `kCSInputScrollSmooth` then this is a positive or negative amount to scroll. Otherwise it is ignored.
-- (void)sendMouseScroll:(CSInputScroll)type button:(CSInputButton)button dy:(CGFloat)dy;
+- (void)sendMouseScroll:(CSInputScroll)type buttonMask:(CSInputButton)buttonMask dy:(CGFloat)dy;
 
 /// Sends a mouse button without moving the mouse
-/// @param button Mask of mouse buttons
+/// @param button New button being pressed or released
+/// @param mask Mask of all buttons currently pressed
 /// @param pressed Pressed or released
-- (void)sendMouseButton:(CSInputButton)button pressed:(BOOL)pressed;
+- (void)sendMouseButton:(CSInputButton)button mask:(CSInputButton)mask pressed:(BOOL)pressed;
 
 /// Request change to absolute or relative positioning for mouse events
 ///
