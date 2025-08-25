@@ -202,11 +202,13 @@ static gboolean cs_clipboard_grab(SpiceMainChannel *main, guint selection,
         return TRUE;
     }
 
+    g_object_ref(main);
     [CSMain.sharedInstance asyncWith:^{
         for (int n = 0; n < ntypes; ++n) {
             spice_main_channel_clipboard_selection_request(main, selection,
                                                            types[n]);
         }
+        g_object_unref(main);
     }];
 
     return TRUE;
@@ -230,8 +232,10 @@ static gboolean cs_clipboard_request(SpiceMainChannel *main, guint selection,
     CSPasteboardType cspbType = cspbTypeForClipboardType(type);
     NSData *data = [self.pasteboardDelegate dataForType:cspbType];
     if (data) {
+        g_object_ref(main);
         [CSMain.sharedInstance asyncWith:^{
             spice_main_channel_clipboard_selection_notify(main, selection, type, data.bytes, data.length);
+            g_object_unref(main);
         }];
     }
 
@@ -346,9 +350,8 @@ static void cs_channel_destroy(SpiceSession *session, SpiceChannel *channel,
 #pragma mark - Notification handler
 
 - (void)pasteboardDidChange:(NSNotification *)notification {
-    SpiceMainChannel *main = self.main;
     SPICE_DEBUG("[CocoaSpice] seen UIPasteboardChangedNotification");
-    if (!main || !self.shareClipboard || self.sessionReadOnly || !self.pasteboardDelegate) {
+    if (!self.main || !self.shareClipboard || self.sessionReadOnly || !self.pasteboardDelegate) {
         return;
     }
     guint32 type = VD_AGENT_CLIPBOARD_NONE;
@@ -369,21 +372,20 @@ static void cs_channel_destroy(SpiceSession *session, SpiceChannel *channel,
     if (spice_main_channel_agent_test_capability(self.main, VD_AGENT_CAP_CLIPBOARD_BY_DEMAND)) {
         [CSMain.sharedInstance asyncWith:^{
             guint32 _type = type;
-            spice_main_channel_clipboard_selection_grab(main, VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD, &_type, 1);
+            spice_main_channel_clipboard_selection_grab(self.main, VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD, &_type, 1);
         }];
     }
 }
 
 - (void)pasteboardDidRemove:(NSNotification *)notification {
-    SpiceMainChannel *main = self.main;
     SPICE_DEBUG("[CocoaSpice] seen UIPasteboardRemovedNotification");
-    if (!main || !self.shareClipboard || self.sessionReadOnly) {
+    if (!self.main || !self.shareClipboard || self.sessionReadOnly) {
         return;
     }
     if (spice_main_channel_agent_test_capability(self.main, VD_AGENT_CAP_CLIPBOARD_BY_DEMAND)) {
         [CSMain.sharedInstance asyncWith:^{
             guint32 type = VD_AGENT_CLIPBOARD_UTF8_TEXT;
-            spice_main_channel_clipboard_selection_grab(main, VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD, &type, 1);
+            spice_main_channel_clipboard_selection_grab(self.main, VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD, &type, 1);
         }];
     }
 }

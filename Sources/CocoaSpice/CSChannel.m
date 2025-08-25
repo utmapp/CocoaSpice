@@ -21,12 +21,13 @@
 @implementation CSChannel
 
 - (void)setSpiceMain:(SpiceMainChannel *)spiceMain {
-    if (_spiceMain) {
+    SpiceMainChannel *old = _spiceMain;
+    _spiceMain = spiceMain ? g_object_ref(spiceMain) : NULL;
+    if (old) {
         [CSMain.sharedInstance syncWith:^{
-            g_object_unref(_spiceMain);
+            g_object_unref(old);
         }];
     }
-    _spiceMain = spiceMain ? g_object_ref(spiceMain) : NULL;
 }
 
 - (NSInteger)channelID {

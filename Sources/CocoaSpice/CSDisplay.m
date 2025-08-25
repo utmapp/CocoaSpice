@@ -603,12 +603,12 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)requestResolution:(CGRect)bounds {
-    SpiceMainChannel *main = self.spiceMain;
-    if (!main) {
+    if (!self.spiceMain) {
         SPICE_DEBUG("[CocoaSpice] ignoring change resolution because main channel not found");
         return;
     }
     [CSMain.sharedInstance asyncWith:^{
+        SpiceMainChannel *main = self.spiceMain;
         spice_main_channel_update_display_enabled(main, (int)self.monitorID, TRUE, FALSE);
         spice_main_channel_update_display(main,
                                           (int)self.monitorID,
@@ -623,13 +623,12 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
 - (void)setIsEnabled:(BOOL)isEnabled {
     if (_isEnabled != isEnabled) {
-        SpiceMainChannel *main = self.spiceMain;
-        if (!main) {
+        if (!self.spiceMain) {
             SPICE_DEBUG("[CocoaSpice] ignoring display enable change because main channel not found");
             return;
         }
         [CSMain.sharedInstance asyncWith:^{
-            spice_main_channel_update_display_enabled(main, (int)self.monitorID, isEnabled, TRUE);
+            spice_main_channel_update_display_enabled(self.spiceMain, (int)self.monitorID, isEnabled, TRUE);
             self->_isEnabled = isEnabled;
         }];
     }

@@ -384,14 +384,15 @@ end:
 }
 
 - (void)setSpiceMain:(SpiceMainChannel *)spiceMain {
-    if (_spiceMain) {
-        [CSMain.sharedInstance syncWith:^{
-            g_object_unref(_spiceMain);
-        }];
-    }
+    SpiceMainChannel *old = _spiceMain;
     _spiceMain = spiceMain ? g_object_ref(spiceMain) : NULL;
     for (CSChannel *channel in self.channels) {
         channel.spiceMain = spiceMain;
+    }
+    if (old) {
+        [CSMain.sharedInstance syncWith:^{
+            g_object_unref(old);
+        }];
     }
 }
 

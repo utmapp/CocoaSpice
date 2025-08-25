@@ -52,11 +52,11 @@
 #pragma mark - Key handling
 
 - (void)sendPause:(CSInputKey)type {
-    SpiceInputsChannel *inputs = self.channel;
-    if (!inputs) {
+    if (!self.channel) {
         return;
     }
     [CSMain.sharedInstance asyncWith:^{
+        SpiceInputsChannel *inputs = self.channel;
         /* Send proper scancodes. This will send same scancodes
          * as hardware.
          * The 0x21d is a sort of Third-Ctrl while
@@ -73,12 +73,11 @@
 }
 
 - (void)sendKey:(CSInputKey)type code:(int)scancode {
-    SpiceInputsChannel *inputs = self.channel;
     uint32_t i, b, m;
     
     g_return_if_fail(scancode != 0);
     
-    if (!inputs) {
+    if (!self.channel) {
         return;
     }
     if (self.disableInputs) {
@@ -91,6 +90,7 @@
     g_return_if_fail(i < SPICE_N_ELEMENTS(self->_key_state));
     
     [CSMain.sharedInstance asyncWith:^{
+        SpiceInputsChannel *inputs = self.channel;
         switch (type) {
             case kCSInputKeyPress:
                 spice_inputs_channel_key_press(inputs, scancode);
@@ -152,10 +152,9 @@
 }
 
 - (void)setKeyLock:(CSInputKeyLock)keyLock {
-    SpiceInputsChannel *inputs = self.channel;
     guint locks = 0;
     
-    if (!inputs) {
+    if (!self.channel) {
         return;
     }
     if (keyLock & kCSInputKeyLockNum) {
@@ -169,7 +168,7 @@
     }
     
     [CSMain.sharedInstance asyncWith:^{
-        spice_inputs_channel_set_key_locks(inputs, locks);
+        spice_inputs_channel_set_key_locks(self.channel, locks);
     }];
 }
 
@@ -218,9 +217,7 @@ static int cs_button_to_spice(CSInputButton button)
 }
 
 - (void)sendMouseMotion:(CSInputButton)buttonMask relativePoint:(CGPoint)relativePoint forMonitorID:(NSInteger)monitorID {
-    SpiceInputsChannel *inputs = self.channel;
-    
-    if (!inputs) {
+    if (!self.channel) {
         return;
     }
     if (self.disableInputs) {
@@ -231,7 +228,7 @@ static int cs_button_to_spice(CSInputButton button)
         if (!self.serverModeCursor) {
             SPICE_DEBUG("[CocoaSpice] %s:%d ignoring mouse motion event since we are in client mode", __FUNCTION__, __LINE__);
         } else {
-            spice_inputs_channel_motion(inputs, relativePoint.x, relativePoint.y,
+            spice_inputs_channel_motion(self.channel, relativePoint.x, relativePoint.y,
                                         cs_button_mask_to_spice(buttonMask));
         }
     }];
@@ -242,9 +239,7 @@ static int cs_button_to_spice(CSInputButton button)
 }
 
 - (void)sendMousePosition:(CSInputButton)buttonMask absolutePoint:(CGPoint)absolutePoint forMonitorID:(NSInteger)monitorID {
-    SpiceInputsChannel *inputs = self.channel;
-    
-    if (!inputs) {
+    if (!self.channel) {
         return;
     }
     if (self.disableInputs) {
@@ -255,7 +250,7 @@ static int cs_button_to_spice(CSInputButton button)
         if (self.serverModeCursor) {
             SPICE_DEBUG("[CocoaSpice] %s:%d ignoring mouse position event since we are in server mode", __FUNCTION__, __LINE__);
         } else {
-            spice_inputs_channel_position(inputs, absolutePoint.x, absolutePoint.y, (int)monitorID,
+            spice_inputs_channel_position(self.channel, absolutePoint.x, absolutePoint.y, (int)monitorID,
                                           cs_button_mask_to_spice(buttonMask));
         }
     }];
@@ -266,12 +261,11 @@ static int cs_button_to_spice(CSInputButton button)
 }
 
 - (void)sendMouseScroll:(CSInputScroll)type buttonMask:(CSInputButton)buttonMask dy:(CGFloat)dy {
-    SpiceInputsChannel *inputs = self.channel;
     gint button_state = cs_button_mask_to_spice(buttonMask);
     
     SPICE_DEBUG("%s", __FUNCTION__);
     
-    if (!inputs) {
+    if (!self.channel) {
         return;
     }
     if (self.disableInputs) {
@@ -279,6 +273,7 @@ static int cs_button_to_spice(CSInputButton button)
     }
     
     [CSMain.sharedInstance asyncWith:^{
+        SpiceInputsChannel *inputs = self.channel;
         switch (type) {
             case kCSInputScrollUp:
                 spice_inputs_channel_button_press(inputs, SPICE_MOUSE_BUTTON_UP, button_state);
@@ -309,12 +304,11 @@ static int cs_button_to_spice(CSInputButton button)
 }
 
 - (void)sendMouseButton:(CSInputButton)button mask:(CSInputButton)mask pressed:(BOOL)pressed {
-    SpiceInputsChannel *inputs = self.channel;
     SPICE_DEBUG("%s %s: button %u", __FUNCTION__,
                   pressed ? "press" : "release",
                   (unsigned int)button);
     
-    if (!inputs) {
+    if (!self.channel) {
         return;
     }
     if (self.disableInputs) {
@@ -322,6 +316,7 @@ static int cs_button_to_spice(CSInputButton button)
     }
     
     [CSMain.sharedInstance asyncWith:^{
+        SpiceInputsChannel *inputs = self.channel;
         if (pressed) {
             spice_inputs_channel_button_press(inputs,
                                               cs_button_to_spice(button),
@@ -335,11 +330,11 @@ static int cs_button_to_spice(CSInputButton button)
 }
 
 - (void)requestMouseMode:(BOOL)server {
-    SpiceMainChannel *main = self.spiceMain;
-    if (!main) {
+    if (!self.spiceMain) {
         return;
     }
     [CSMain.sharedInstance asyncWith:^{
+        SpiceMainChannel *main = self.spiceMain;
         if (server) {
             spice_main_channel_request_mouse_mode(main, SPICE_MOUSE_MODE_SERVER);
         } else {
