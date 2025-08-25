@@ -27,6 +27,15 @@
 
 @end
 
+@interface _CSMainBlock : NSObject
+
+@property (nonatomic, copy) dispatch_block_t userBlock;
+@property (nonatomic, nullable, strong) dispatch_group_t group;
+
+@end
+
+@implementation _CSMainBlock @end
+
 @implementation CSMain {
     GMainContext *_main_context;
     GMainLoop *_main_loop;
@@ -169,26 +178,44 @@ void *spice_main_loop(void *args) {
 }
 
 static gboolean callBlockInMainContext(gpointer data) {
-    dispatch_block_t block = (__bridge_transfer dispatch_block_t)data;
-    block();
+    _CSMainBlock *block = (__bridge _CSMainBlock *)data;
+    block.userBlock();
     return FALSE;
 }
 
-- (void)asyncWith:(dispatch_block_t)block {
+static void cleanupBlock(gpointer data) {
+    _CSMainBlock *block = (__bridge_transfer _CSMainBlock *)data;
+    block.userBlock = nil;
+    if (block.group) {
+        dispatch_group_leave(block.group);
+    }
+}
+
+- (void)asyncWithBlock:(_CSMainBlock *)block {
     gpointer data = (__bridge_retained void *)block;
-    g_main_context_invoke(self.glibMainContext, callBlockInMainContext, data);
+    g_main_context_invoke_full(self.glibMainContext,
+                               G_PRIORITY_DEFAULT,
+                               callBlockInMainContext,
+                               data,
+                               cleanupBlock);
+}
+
+- (void)asyncWith:(dispatch_block_t)block {
+    _CSMainBlock *_block = [[_CSMainBlock alloc] init];
+    _block.userBlock = block;
+    [self asyncWithBlock:_block];
 }
 
 - (void)syncWith:(dispatch_block_t)block {
     if (g_main_context_is_owner(self.glibMainContext)) {
         block();
     } else {
+        _CSMainBlock *_block = [[_CSMainBlock alloc] init];
         dispatch_group_t mainContextGroup = dispatch_group_create();
         dispatch_group_enter(mainContextGroup);
-        [self asyncWith:^{
-            block();
-            dispatch_group_leave(mainContextGroup);
-        }];
+        _block.userBlock = block;
+        _block.group = mainContextGroup;
+        [self asyncWithBlock:_block];
         dispatch_group_wait(mainContextGroup, DISPATCH_TIME_FOREVER);
     }
 }
