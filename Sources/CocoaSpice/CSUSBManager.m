@@ -54,7 +54,7 @@ static void cs_device_error(SpiceUsbDeviceManager *manager,
                             gpointer               data)
 {
     CSUSBManager *self = (__bridge CSUSBManager *)data;
-    CSUSBDevice *usbdevice = [CSUSBDevice usbDeviceWithDevice:device];
+    CSUSBDevice *usbdevice = [CSUSBDevice usbDeviceWithDevice:device manager:manager];
 
     if (error->domain == G_IO_ERROR && error->code == G_IO_ERROR_CANCELLED)
         return;
@@ -66,8 +66,8 @@ static void cs_device_added(SpiceUsbDeviceManager *manager,
     SpiceUsbDevice *device, gpointer data)
 {
     CSUSBManager *self = (__bridge CSUSBManager *)data;
-    CSUSBDevice *usbdevice = [CSUSBDevice usbDeviceWithDevice:device];
-    
+    CSUSBDevice *usbdevice = [CSUSBDevice usbDeviceWithDevice:device manager:manager];
+
     [self.delegate spiceUsbManager:self deviceAttached:usbdevice];
 }
 
@@ -75,8 +75,8 @@ static void cs_device_removed(SpiceUsbDeviceManager *manager,
     SpiceUsbDevice *device, gpointer data)
 {
     CSUSBManager *self = (__bridge CSUSBManager *)data;
-    CSUSBDevice *usbdevice = [CSUSBDevice usbDeviceWithDevice:device];
-    
+    CSUSBDevice *usbdevice = [CSUSBDevice usbDeviceWithDevice:device manager:manager];
+
     [self.delegate spiceUsbManager:self deviceRemoved:usbdevice];
 }
 
@@ -173,7 +173,7 @@ static gboolean cs_call_manager(gpointer user_data)
     if (arr != NULL) {
         for (int i = 0; i < arr->len; i++) {
             SpiceUsbDevice *device = g_ptr_array_index(arr, i);
-            [usbDevices addObject:[CSUSBDevice usbDeviceWithDevice:device]];
+            [usbDevices addObject:[CSUSBDevice usbDeviceWithDevice:device manager:self.usbDeviceManager]];
         }
         g_ptr_array_unref(arr);
     }

@@ -22,6 +22,7 @@
 @interface CSUSBDevice ()
 
 @property (nonatomic, readwrite, nonnull) SpiceUsbDevice *device;
+@property (nonatomic, readwrite, nonnull) SpiceUsbDeviceManager *manager;
 @property (nonatomic) BOOL hasReadDescriptors;
 
 @end
@@ -34,19 +35,22 @@
 @synthesize usbVendorId = _usbVendorId;
 @synthesize usbProductId = _usbProductId;
 
-+ (instancetype)usbDeviceWithDevice:(SpiceUsbDevice *)device {
-    return [[CSUSBDevice alloc] initWithDevice:device];
++ (instancetype)usbDeviceWithDevice:(SpiceUsbDevice *)device manager:(SpiceUsbDeviceManager *)manager {
+    return [[CSUSBDevice alloc] initWithDevice:device manager:manager];
 }
 
-- (instancetype)initWithDevice:(SpiceUsbDevice *)device {
+- (instancetype)initWithDevice:(SpiceUsbDevice *)device manager:(SpiceUsbDeviceManager *)manager {
     if (self = [super init]) {
-        self.device = g_boxed_copy(spice_usb_device_get_type(), device);
+        self.device = g_boxed_copy(SPICE_TYPE_USB_DEVICE, device);
+        self.manager = g_object_ref(manager);
     }
     return self;
 }
 
 - (void)dealloc {
-    g_boxed_free(spice_usb_device_get_type(), self.device);
+    g_boxed_free(SPICE_TYPE_USB_DEVICE, self.device);
+    // must unref manager after device because manager's finalize can call `libusb_exit`
+    g_object_unref(self.manager);
 }
 
 - (void)readDescriptors {

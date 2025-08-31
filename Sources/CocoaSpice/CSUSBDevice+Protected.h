@@ -17,6 +17,7 @@
 #import "CSUSBDevice.h"
 
 typedef struct _SpiceUsbDevice SpiceUsbDevice;
+typedef struct _SpiceUsbDeviceManager SpiceUsbDeviceManager;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -27,13 +28,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Create a new USB device from a SPICE USB device
 /// @param device SPICE USB device
-+ (instancetype)usbDeviceWithDevice:(SpiceUsbDevice *)device;
++ (instancetype)usbDeviceWithDevice:(SpiceUsbDevice *)device manager:(SpiceUsbDeviceManager *)manager;
 
 - (instancetype)init NS_UNAVAILABLE;
 
 /// Create a new USB device from a SPICE USB device
 /// @param device SPICE USB device
-- (instancetype)initWithDevice:(SpiceUsbDevice *)device;
+- (instancetype)initWithDevice:(SpiceUsbDevice *)device manager:(SpiceUsbDeviceManager *)manager;
 
 @end
 
