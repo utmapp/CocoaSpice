@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+#import "CocoaSpice.h"
 #import "CSUSBDevice.h"
 #import <glib.h>
 #import <spice-client.h>
@@ -48,9 +49,13 @@
 }
 
 - (void)dealloc {
-    g_boxed_free(SPICE_TYPE_USB_DEVICE, self.device);
-    // must unref manager after device because manager's finalize can call `libusb_exit`
-    g_object_unref(self.manager);
+    SpiceUsbDevice *device = self.device;
+    SpiceUsbDeviceManager *manager = self.manager;
+    [CSMain.sharedInstance syncWith:^{
+        g_boxed_free(SPICE_TYPE_USB_DEVICE, device);
+        // must unref manager after device because manager's finalize can call `libusb_exit`
+        g_object_unref(manager);
+    }];
 }
 
 - (void)readDescriptors {
