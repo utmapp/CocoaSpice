@@ -216,12 +216,16 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
 
 - (void)dealloc {
     SpiceCursorChannel *channel = self.channel;
+    SpiceMainChannel *main = self.spiceMain;
     gpointer data = (__bridge void *)self;
     [CSMain.sharedInstance syncWith:^{
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_set), data);
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_move), data);
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_hide), data);
         g_signal_handlers_disconnect_by_func(channel, G_CALLBACK(cs_cursor_reset), data);
+        if (main) {
+            g_signal_handlers_disconnect_by_func(main, G_CALLBACK(cs_update_mouse_mode), data);
+        }
         g_object_unref(channel);
     }];
 }
