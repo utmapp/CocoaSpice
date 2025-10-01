@@ -38,7 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL hasAlpha;
 @property (nonatomic, readonly) BOOL isInverted;
 @property (nonatomic, readonly) BOOL isVisible;
-@property (nonatomic, readonly) id<CSRenderSource> cursorSource;
+@property (nonatomic, strong, readonly) id<CSRenderSource> cursorSource;
 
 - (instancetype)init NS_UNAVAILABLE;
 - (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource;
@@ -61,6 +61,7 @@ NS_ASSUME_NONNULL_END
 ///   - renderSource: Render source to read from
 ///   - offset: Offset to add to `viewportOrigin`, can be zero
 - (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource atOffset:(CGPoint)offset {
+    id<CSRenderSource> cursorSource = renderSource.cursorSource;
     if (self = [super init]) {
         _viewportOrigin = CGPointMake(renderSource.viewportOrigin.x +
                                       offset.x,
@@ -76,8 +77,8 @@ NS_ASSUME_NONNULL_END
         if (!_vertices || !_texture) {
             return nil;
         }
-        if (renderSource.cursorSource) {
-            _cursorSource = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource.cursorSource
+        if (cursorSource) {
+            _cursorSource = [[_CSRendererSourceData alloc] initWithRenderSource:cursorSource
                                                                        atOffset:renderSource.viewportOrigin];
         }
     }
