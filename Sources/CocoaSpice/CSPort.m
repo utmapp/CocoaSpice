@@ -26,7 +26,7 @@ static const NSInteger kMaxCacheBufferSize = 4096;
 @property (nonatomic, readwrite) SpicePortChannel *channel;
 @property (nonatomic, readwrite, weak) CSConnection *connection;
 @property (nonatomic) NSMutableData *cacheBuffer;
-@property (nonatomic) dispatch_queue_t cacheBufferQueue;
+@property (nonatomic) dispatch_queue_t portDataQueue;
 
 @end
 
@@ -48,21 +48,21 @@ static void cs_port_data(SpicePortChannel *port,
                          gpointer data, int size, gpointer user)
 {
     CSPort *self = (__bridge CSPort *)user;
-    id<CSPortDelegate> delegate = self.delegate;
     NSData *nsdata = [NSData dataWithBytes:data length:size];
-    
-    if (delegate) {
-        [delegate port:self didRecieveData:nsdata];
-    } else {
-        dispatch_async(self.cacheBufferQueue, ^{
-            [self.cacheBuffer appendData:nsdata];
-            if (self.cacheBuffer.length > kMaxCacheBufferSize) {
-                [self.cacheBuffer replaceBytesInRange:NSMakeRange(0, self.cacheBuffer.length-kMaxCacheBufferSize)
-                                            withBytes:NULL
-                                               length:0];
-            }
-        });
-    }
+
+	dispatch_async(self.portDataQueue, ^{
+		id<CSPortDelegate> delegate = self.delegate;
+		if (delegate) {
+			[delegate port:self didRecieveData:nsdata];
+		} else {
+			[self.cacheBuffer appendData:nsdata];
+			if (self.cacheBuffer.length > kMaxCacheBufferSize) {
+				[self.cacheBuffer replaceBytesInRange:NSMakeRange(0, self.cacheBuffer.length-kMaxCacheBufferSize)
+											withBytes:NULL
+											   length:0];
+			}
+		}
+	});
 }
 
 static void cs_port_event(SpicePortChannel *port, gint event)
@@ -91,7 +91,7 @@ static void cs_port_write_cb(GObject *source_object,
 - (instancetype)initWithChannel:(SpicePortChannel *)channel {
     if (self = [self init]) {
         self.cacheBuffer = [NSMutableData data];
-        self.cacheBufferQueue = dispatch_queue_create("CocoaSpice Cache Buffer Queue", NULL);
+        self.portDataQueue = dispatch_queue_create("CocoaSpice Port Data Queue", NULL);
         self.channel = g_object_ref(channel);
         g_signal_connect(channel, "notify::port-opened",
                          G_CALLBACK(cs_port_opened), (__bridge void *)self);
@@ -145,13 +145,15 @@ static void cs_port_write_cb(GObject *source_object,
 }
 
 - (void)setDelegate:(id<CSPortDelegate>)delegate {
-    if (_delegate == NULL && self.cacheBuffer.length > 0) {
-        dispatch_async(self.cacheBufferQueue, ^{
-            [delegate port:self didRecieveData:self.cacheBuffer];
-            self.cacheBuffer.length = 0;
-        });
-    }
-    _delegate = delegate;
+	dispatch_async(self.portDataQueue, ^{
+		if (_delegate == NULL) {
+			if (self.cacheBuffer.length > 0) {
+				[delegate port:self didRecieveData:self.cacheBuffer];
+			}
+			self.cacheBuffer.length = 0;
+		}
+		_delegate = delegate;
+	});
 }
 
 - (void)writeData:(NSData *)data {
