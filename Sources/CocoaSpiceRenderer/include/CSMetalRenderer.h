@@ -25,9 +25,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// Simple platform independent renderer for CocoaSpice
 @interface CSMetalRenderer : NSObject<MTKViewDelegate, CSRenderer>
 
-/// If true, then for canvas based operations, the blit will be done from the GPU. Otherwise, it will be done from the CPU.
-@property (nonatomic) BOOL isBlitOnGpu;
-
 /// Create a new renderer for a MTKView
 /// @param mtkView The MetalKit View
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView;

@@ -273,18 +273,6 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     
     _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource];
     
-    if (!self.isBlitOnGpu) {
-        dispatch_async(self.rendererQueue, ^{
-            [sourceData.texture replaceRegion:region
-                                  mipmapLevel:0
-                                    withBytes:(sourceBuffer.contents + sourceOffset)
-                                  bytesPerRow:sourceBytesPerRow];
-            self.sourceData = sourceData;
-            completion();
-        });
-        return;
-    }
-    
     dispatch_async(self.rendererQueue, ^{
         id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
         commandBuffer.label = @"Blit Command Buffer";
