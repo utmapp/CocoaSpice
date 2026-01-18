@@ -168,6 +168,10 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     return nil; // no such thing as a cursor for a cursor
 }
 
+- (id<MTLEvent>)event {
+    return nil; // no event
+}
+
 - (CGPoint)viewportOrigin {
     CSDisplay *display = self.display;
     if (!display) {

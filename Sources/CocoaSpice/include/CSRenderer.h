@@ -21,7 +21,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef void (^copyCompletionCallback_t)(void);
+typedef void (^completionCallback_t)(void);
 
 @protocol CSRenderer <NSObject>
 
@@ -36,17 +36,18 @@ typedef void (^copyCompletionCallback_t)(void);
 ///   - sourceOffset: Offset in the source buffer to copy from
 ///   - sourceBytesPerRow: Stride of the source buffer
 ///   - completion: Block to run after the texture is rendered
-- (void)renderSouce:(id<CSRenderSource>)renderSource
-         copyBuffer:(id<MTLBuffer>)sourceBuffer
-             region:(MTLRegion)region
-       sourceOffset:(NSUInteger)sourceOffset
-  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
-         completion:(copyCompletionCallback_t)completion;
+- (id<CSRenderSource>)renderSouce:(id<CSRenderSource>)renderSource
+                       copyBuffer:(id<MTLBuffer>)sourceBuffer
+                           region:(MTLRegion)region
+                     sourceOffset:(NSUInteger)sourceOffset
+                sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+                       completion:(nullable completionCallback_t)completion;
 
 /// Mark source pending to be rendered
 /// - Parameters:
 ///   - renderSource: Source to render
-- (void)invalidateRenderSource:(id<CSRenderSource>)renderSource;
+///   - event: MTLEvent to wait for before rendering
+- (id<CSRenderSource>)invalidateRenderSource:(id<CSRenderSource>)renderSource;
 
 @end
 

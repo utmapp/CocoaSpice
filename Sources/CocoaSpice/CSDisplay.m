@@ -330,6 +330,10 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     return self.cursor;
 }
 
+- (id<MTLEvent>)event {
+    return nil; // no event
+}
+
 - (void)setCursor:(CSCursor *)cursor {
     if (_cursor) {
         _cursor.display = nil;

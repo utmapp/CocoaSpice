@@ -53,18 +53,20 @@
  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
         completion:(copyCompletionCallback_t)completion {
     dispatch_async(self.displayQueue, ^{
+        id<CSRenderSource> blitSource = self;
         if (self.renderers.count > 0) {
-            [self.renderers[0] renderSouce:self
-                                copyBuffer:sourceBuffer
-                                    region:region
-                              sourceOffset:sourceOffset
-                         sourceBytesPerRow:sourceBytesPerRow
-                                completion:completion];
+            blitSource =
+                [self.renderers[0] renderSouce:self
+                                    copyBuffer:sourceBuffer
+                                        region:region
+                                  sourceOffset:sourceOffset
+                             sourceBytesPerRow:sourceBytesPerRow
+                                    completion:completion];
         }
         if (self.renderers.count > 1) {
             // invalidate all others
             for (NSInteger i = 1; i < self.renderers.count; i++) {
-                [self.renderers[i] invalidateRenderSource:self];
+                [self.renderers[i] invalidateRenderSource:blitSource];
             }
         }
     });

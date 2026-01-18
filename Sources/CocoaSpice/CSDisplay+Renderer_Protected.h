@@ -24,7 +24,7 @@ NS_ASSUME_NONNULL_BEGIN
             region:(MTLRegion)region
       sourceOffset:(NSUInteger)sourceOffset
  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
-        completion:(copyCompletionCallback_t)completion;
+        completion:(completionCallback_t)completion;
 
 - (void)invalidate;
 

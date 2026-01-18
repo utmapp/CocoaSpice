@@ -38,11 +38,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL hasAlpha;
 @property (nonatomic, readonly) BOOL isInverted;
 @property (nonatomic, readonly) BOOL isVisible;
-@property (nonatomic, strong, readonly) id<CSRenderSource> cursorSource;
+@property (nonatomic, strong, readonly) _CSRendererSourceData *cursorSource;
+@property (nonatomic, nullable, readonly) completionCallback_t completion;
 
 - (instancetype)init NS_UNAVAILABLE;
-- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource;
-- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource atOffset:(CGPoint)offset NS_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource device:(id<MTLDevice>)device completion:(nullable completionCallback_t)completion;
+- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource atOffset:(CGPoint)offset device:(id<MTLDevice>)device completion:(nullable completionCallback_t)completion NS_DESIGNATED_INITIALIZER;
 
 @end
 
@@ -52,15 +53,15 @@ NS_ASSUME_NONNULL_END
 
 /// Retain a copy of the render source data
 /// - Parameter renderSource: Render source to read from
-- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource {
-    return [self initWithRenderSource:renderSource atOffset:CGPointZero];
+- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource completion:(nullable completionCallback_t)completion {
+    return [self initWithRenderSource:renderSource atOffset:CGPointZero completion:completion];
 }
 
 /// Retain a copy of the render source data
 /// - Parameters:
 ///   - renderSource: Render source to read from
 ///   - offset: Offset to add to `viewportOrigin`, can be zero
-- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource atOffset:(CGPoint)offset {
+- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource atOffset:(CGPoint)offset completion:(nullable completionCallback_t)completion {
     id<CSRenderSource> cursorSource = renderSource.cursorSource;
     if (self = [super init]) {
         _viewportOrigin = CGPointMake(renderSource.viewportOrigin.x +
@@ -74,12 +75,14 @@ NS_ASSUME_NONNULL_END
         _hasAlpha = renderSource.hasAlpha;
         _isInverted = renderSource.isInverted;
         _isVisible = renderSource.isVisible;
+        _completion = completion;
         if (!_vertices || !_texture) {
             return nil;
         }
         if (cursorSource) {
             _cursorSource = [[_CSRendererSourceData alloc] initWithRenderSource:cursorSource
-                                                                       atOffset:renderSource.viewportOrigin];
+                                                                       atOffset:renderSource.viewportOrigin
+                                                                     completion:nil];
         }
     }
     return self;
@@ -89,8 +92,9 @@ NS_ASSUME_NONNULL_END
 
 @interface CSMetalRenderer ()
 
-@property (nonatomic) dispatch_queue_t rendererQueue;
-@property (nonatomic, nullable) _CSRendererSourceData *sourceData;
+@property (nonatomic, nullable) const _CSRendererSourceData *renderSourceData;
+@property (nonatomic, assign) vector_uint2 viewportSize;
+@property (nonatomic) id<MTLSamplerState> sampler;
 
 @end
 
@@ -105,12 +109,6 @@ NS_ASSUME_NONNULL_END
 
     // The command Queue from which we'll obtain command buffers
     id<MTLCommandQueue> _commandQueue;
-
-    // The current size of our view so we can use this in our render pipeline
-    vector_uint2 _viewportSize;
-    
-    // Sampler object
-    id<MTLSamplerState> _sampler;
 }
 
 @synthesize device = _device;
@@ -124,10 +122,7 @@ NS_ASSUME_NONNULL_END
         NSError *error = NULL;
         
         _device = mtkView.device;
-        _viewportSize.x = mtkView.drawableSize.width;
-        _viewportSize.y = mtkView.drawableSize.height;
-        dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, 0);
-        self.rendererQueue = dispatch_queue_create("CocoaSpice Renderer Queue", attr);
+        [self setViewportCGSize:mtkView.drawableSize];
 
         /// Create our render pipeline
         
@@ -166,7 +161,7 @@ NS_ASSUME_NONNULL_END
 
         // Create the command queue
         _commandQueue = [_device newCommandQueue];
-        
+
         // Sampler
         [self _initializeUpscaler:MTLSamplerMinMagFilterLinear downscaler:MTLSamplerMinMagFilterLinear];
     }
@@ -178,25 +173,30 @@ NS_ASSUME_NONNULL_END
     MTLSamplerDescriptor *samplerDescriptor = [MTLSamplerDescriptor new];
     samplerDescriptor.minFilter = downscaler;
     samplerDescriptor.magFilter = upscaler;
-    
+
     _sampler = [_device newSamplerStateWithDescriptor:samplerDescriptor];
 }
 
 /// Scalers from VM settings
 - (void)changeUpscaler:(MTLSamplerMinMagFilter)upscaler downscaler:(MTLSamplerMinMagFilter)downscaler {
-    dispatch_async(self.rendererQueue, ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         [self _initializeUpscaler:upscaler downscaler:downscaler];
     });
 }
 
+- (void)setViewportCGSize:(CGSize)size {
+    vector_uint2 viewportSize;
+
+    viewportSize.x = size.width;
+    viewportSize.y = size.height;
+    self.viewportSize = viewportSize;
+}
+
 /// Called whenever view changes orientation or is resized
 - (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
-    dispatch_async(self.rendererQueue, ^{
-        // Save the size of the drawable as we'll pass these
-        //   values to our vertex shader when we draw
-        _viewportSize.x = size.width;
-        _viewportSize.y = size.height;
-    });
+    // Save the size of the drawable as we'll pass these
+    //   values to our vertex shader when we draw
+    [self setViewportCGSize:size];
 }
 
 /// Create a translation+scale matrix
@@ -242,88 +242,127 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     if (renderPassDescriptor == nil || currentDrawable == nil) {
         return;
     }
-    
-    // synchronize with rendererQueue in order to access currentCommandBuffer
-    dispatch_sync(self.rendererQueue, ^{
-        id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
-        commandBuffer.label = @"Renderer Command Buffer";
-        
-        if (self.sourceData.isVisible) {
-            [self _renderCommand:commandBuffer
-                          source:self.sourceData
-            renderPassDescriptor:renderPassDescriptor];
-            
-            [commandBuffer presentDrawable:currentDrawable];
-        }
 
-        // Finalize rendering here & push the command buffer to the GPU
-        [commandBuffer commit];
-        
-        // clear buffer
-        self.sourceData = nil;
-    });
-}
+    const _CSRendererSourceData *sourceData = self.renderSourceData;
+    vector_uint2 viewportSize = self.viewportSize;
+    id<MTLSamplerState> sampler = self.sampler;
 
-- (void)renderSouce:(id<CSRenderSource>)renderSource
-         copyBuffer:(id<MTLBuffer>)sourceBuffer
-             region:(MTLRegion)region
-       sourceOffset:(NSUInteger)sourceOffset
-  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
-         completion:(copyCompletionCallback_t)completion {
-    
-    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource];
-    
-    dispatch_async(self.rendererQueue, ^{
-        id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
-        commandBuffer.label = @"Blit Command Buffer";
-        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
-        blitEncoder.label = @"Renderer Canvas Updates";
-        
-        [blitEncoder copyFromBuffer:sourceBuffer
-                       sourceOffset:sourceOffset
-                  sourceBytesPerRow:sourceBytesPerRow
-                sourceBytesPerImage:0
-                         sourceSize:region.size
-                          toTexture:sourceData.texture
-                   destinationSlice:0
-                   destinationLevel:0
-                  destinationOrigin:region.origin];
-        
-        [blitEncoder endEncoding];
-        
-        [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
-            completion();
-        }];
-        
-        [commandBuffer commit];
-        
-        self.sourceData = sourceData;
-    });
-}
+    // clear buffer
+    self.renderSourceData = nil;
 
-- (void)invalidateRenderSource:(id<CSRenderSource>)renderSource {
-    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource];
     if (!sourceData.isVisible) {
+        if (sourceData.completion) {
+            sourceData.completion();
+        }
         return;
     }
-    
-    dispatch_async(self.rendererQueue, ^{
-        self.sourceData = sourceData;
-    });
+
+    // synchronize with rendererQueue in order to access currentCommandBuffer
+    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+    commandBuffer.label = @"Draw Frame";
+
+    [self _renderCommand:commandBuffer
+              drawSource:sourceData
+            viewportSize:viewportSize
+                 sampler:sampler
+    renderPassDescriptor:renderPassDescriptor];
+
+    [commandBuffer presentDrawable:currentDrawable];
+
+    [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
+        if (sourceData.completion) {
+            sourceData.completion();
+        }
+    }];
+
+    // Finalize rendering here & push the command buffer to the GPU
+    [commandBuffer commit];
 }
 
-- (void)_renderCommand:(id<MTLCommandBuffer>)commandBuffer
-                source:(id<CSRenderSource>)source
+- (id<CSRenderSource>)renderSouce:(id<CSRenderSource>)renderSource
+                       copyBuffer:(id<MTLBuffer>)sourceBuffer
+                           region:(MTLRegion)region
+                     sourceOffset:(NSUInteger)sourceOffset
+                sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+                       completion:(nullable completionCallback_t)completion {
+
+    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource
+                                                                                 completion:completion];
+
+    if (!sourceData) {
+        if (completion) {
+            completion();
+        }
+        return nil;
+    }
+
+    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+    commandBuffer.label = @"Blit Command Buffer";
+    id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+    blitEncoder.label = @"Renderer Canvas Updates";
+
+    [blitEncoder copyFromBuffer:sourceBuffer
+                   sourceOffset:sourceOffset
+              sourceBytesPerRow:sourceBytesPerRow
+            sourceBytesPerImage:0
+                     sourceSize:region.size
+                      toTexture:sourceData.texture
+               destinationSlice:0
+               destinationLevel:0
+              destinationOrigin:region.origin];
+
+    [blitEncoder endEncoding];
+
+    [commandBuffer commit];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (self.renderSourceData.completion) {
+            self.renderSourceData.completion();
+        }
+        self.renderSourceData = sourceData;
+    });
+
+    return sourceData;
+}
+
+- (id<CSRenderSource>)invalidateRenderSource:(id<CSRenderSource>)renderSource {
+    return [self invalidateRenderSource:renderSource withCompletion:^{}];
+}
+
+- (id<CSRenderSource>)invalidateRenderSource:(id<CSRenderSource>)renderSource
+                              withCompletion:(nullable completionCallback_t)completion {
+    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource
+                                                                                 completion:completion];
+    if (!sourceData || !sourceData.isVisible) {
+        if (completion) {
+            completion();
+        }
+        return nil;
+    }
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (self.renderSourceData.completion) {
+            self.renderSourceData.completion();
+        }
+        self.renderSourceData = sourceData;
+    });
+
+    return sourceData;
+}
+
+- (BOOL)_renderCommand:(id<MTLCommandBuffer>)commandBuffer
+            drawSource:(id<CSRenderSource>)source
+          viewportSize:(vector_uint2)viewportSize
+               sampler:(id<MTLSamplerState>)sampler
   renderPassDescriptor:(MTLRenderPassDescriptor *)renderPassDescriptor {
-    
     id<MTLRenderCommandEncoder> renderEncoder =
-    [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+        [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
     renderEncoder.label = @"View Presentation";
-    
+
     [renderEncoder setRenderPipelineState:_pipelineState];
-    
-    // Render the screen first
+
     NSAssert(source.isVisible, @"Screen should be visible at this point!");
+
     [self _renderEncoder:renderEncoder
             drawAtOrigin:source.viewportOrigin
                    scale:source.viewportScale
@@ -331,8 +370,10 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
             numVerticies:source.numVertices
                 hasAlpha:source.hasAlpha
               isInverted:source.isInverted
-                 texture:source.texture];
-    
+                 texture:source.texture
+            viewportSize:viewportSize
+                 sampler:sampler];
+
     // Draw cursor
     if (source.cursorSource.isVisible) {
         // Next render the cursor
@@ -343,9 +384,11 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
                 numVerticies:source.cursorSource.numVertices
                     hasAlpha:source.cursorSource.hasAlpha
                   isInverted:source.cursorSource.isInverted
-                     texture:source.cursorSource.texture];
+                     texture:source.cursorSource.texture
+                viewportSize:viewportSize
+                     sampler:sampler];
     }
-    
+
     [renderEncoder endEncoding];
 }
 
@@ -356,8 +399,9 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
           numVerticies:(NSUInteger)numVerticies
               hasAlpha:(BOOL)hasAlpha
             isInverted:(BOOL)isInverted
-               texture:(id<MTLTexture>)texture {
-    
+               texture:(id<MTLTexture>)texture
+          viewportSize:(vector_uint2)viewportSize
+               sampler:(id<MTLSamplerState>)sampler {
     matrix_float4x4 transform = matrix_scale_translate(scale,
                                                        origin);
 
@@ -365,8 +409,8 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
                             offset:0
                           atIndex:CSRenderVertexInputIndexVertices];
 
-    [renderEncoder setVertexBytes:&_viewportSize
-                           length:sizeof(_viewportSize)
+    [renderEncoder setVertexBytes:&viewportSize
+                           length:sizeof(viewportSize)
                           atIndex:CSRenderVertexInputIndexViewportSize];
 
     [renderEncoder setVertexBytes:&transform
@@ -383,7 +427,7 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     [renderEncoder setFragmentTexture:texture
                               atIndex:CSRenderTextureIndexBaseColor];
     
-    [renderEncoder setFragmentSamplerState:_sampler
+    [renderEncoder setFragmentSamplerState:sampler
                                    atIndex:CSRenderSamplerIndexTexture];
     
     [renderEncoder setFragmentBytes:&isInverted
