@@ -101,6 +101,7 @@ static void cs_primary_destroy(SpiceDisplayChannel *channel, gpointer data) {
         }];
         dispatch_semaphore_wait(invalidateComplete, DISPATCH_TIME_FOREVER);
     }
+    [self disableScanout];
 }
 
 static void cs_invalidate(SpiceChannel *channel,
@@ -348,22 +349,8 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     return value;
 }
 
-- (void)setViewportOrigin:(CGPoint)viewportOrigin {
-    if (!CGPointEqualToPoint(_viewportOrigin, viewportOrigin)) {
-        _viewportOrigin = viewportOrigin;
-        [CSMain.sharedInstance asyncWith:^{
-            [self invalidate];
-        }];
-    }
-}
-
-- (void)setViewportScale:(CGFloat)viewportScale {
-    if (_viewportScale != viewportScale) {
-        _viewportScale = viewportScale;
-        [CSMain.sharedInstance asyncWith:^{
-            [self invalidate];
-        }];
-    }
+- (CGPoint)offset {
+    return CGPointZero;
 }
 
 #pragma mark - Methods
@@ -371,8 +358,6 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 - (instancetype)initWithChannel:(SpiceDisplayChannel *)channel {
     if (self = [self init]) {
         SpiceDisplayPrimary primary;
-        _viewportScale = 1.0f;
-        _viewportOrigin = CGPointMake(0, 0);
         self.channel = g_object_ref(channel);
         self.monitorID = self.channelID;
         self.renderers = [NSMutableArray array];

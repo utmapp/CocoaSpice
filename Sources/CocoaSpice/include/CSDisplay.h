@@ -36,12 +36,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// You can add an observer on this property to detect when the display resolution changes.
 @property (nonatomic, readonly) CGSize displaySize;
 
-/// Set by caller to offset the rendering of the display
-@property (nonatomic, readwrite) CGPoint viewportOrigin;
-
-/// Set by the caller to scale the display
-@property (nonatomic, readwrite) CGFloat viewportScale;
-
 /// Only true for one display in the system.
 /// If the caller supports only rendering a single display, it should be this one.
 @property (nonatomic, readonly) BOOL isPrimaryDisplay;

@@ -30,6 +30,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)invalidate;
 
+- (void)disableScanout;
+
 @end
 
 NS_ASSUME_NONNULL_END

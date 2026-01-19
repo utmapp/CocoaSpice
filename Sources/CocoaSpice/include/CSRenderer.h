@@ -28,6 +28,12 @@ typedef void (^completionCallback_t)(void);
 /// A Metal device linked to a renderer
 @property (nonatomic, readonly) id<MTLDevice> device;
 
+/// Set by the caller to the offset in the render surface where the display will be drawn to
+@property (nonatomic, readwrite) CGPoint viewportOrigin;
+
+/// Set by the caller to a scale factor of the display that is drawn
+@property (nonatomic, readwrite) CGFloat viewportScale;
+
 /// Update the existing texture with pixel data and invalidate
 /// - Parameters:
 ///   - renderSource: Source to render
@@ -36,19 +42,22 @@ typedef void (^completionCallback_t)(void);
 ///   - sourceOffset: Offset in the source buffer to copy from
 ///   - sourceBytesPerRow: Stride of the source buffer
 ///   - completion: Block to run after the texture is rendered
-- (id<CSRenderSource>)renderSouce:(id<CSRenderSource>)renderSource
-                       copyBuffer:(id<MTLBuffer>)sourceBuffer
-                           region:(MTLRegion)region
-                     sourceOffset:(NSUInteger)sourceOffset
-                sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
-                       completion:(nullable completionCallback_t)completion;
+- (void)renderSouce:(id<CSRenderSource>)renderSource
+         copyBuffer:(id<MTLBuffer>)sourceBuffer
+             region:(MTLRegion)region
+       sourceOffset:(NSUInteger)sourceOffset
+  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+         completion:(nullable completionCallback_t)completion;
 
 /// Mark source pending to be rendered
 /// - Parameters:
 ///   - renderSource: Source to render
 ///   - completion: Block to run when draw completed
-- (id<CSRenderSource>)invalidateRenderSource:(id<CSRenderSource>)renderSource
+- (void)invalidateRenderSource:(id<CSRenderSource>)renderSource
                               withCompletion:(nullable completionCallback_t)completion;
+
+/// Clear the render source
+- (void)disableRender;
 
 @end
 

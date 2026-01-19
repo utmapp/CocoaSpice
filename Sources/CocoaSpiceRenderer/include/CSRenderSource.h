@@ -26,10 +26,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL isVisible;
 
 /// Set by the caller to the offset in the render surface where the display will be drawn to
-@property (nonatomic, readonly) CGPoint viewportOrigin;
-
-/// Set by the caller to a scale factor of the display that is drawn
-@property (nonatomic, readonly) CGFloat viewportScale;
+@property (nonatomic, readonly) CGPoint offset;
 
 /// Contains the texture where the source is rendered to
 /// This property should be queried each time a frame is drawn

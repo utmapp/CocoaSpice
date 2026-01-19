@@ -78,7 +78,7 @@ static void cs_cursor_move(SpiceCursorChannel *channel, gint x, gint y, gpointer
     CSCursor *self = (__bridge CSCursor *)data;
     
     self.mouseGuest = CGPointMake(x, y);
-    
+
     /* apparently we have to restore cursor when "cursor_move" */
     if (self.hasCursor) {
         self.cursorHidden = NO;
@@ -166,7 +166,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     return nil; // no event
 }
 
-- (CGPoint)viewportOrigin {
+- (CGPoint)offset {
     CSDisplay *display = self.display;
     if (!display) {
         return CGPointZero;
@@ -174,13 +174,7 @@ static void cs_update_mouse_mode(SpiceChannel *channel, gpointer data)
     CGPoint point = self.mouseGuest;
     point.x -= display.displaySize.width/2;
     point.y -= display.displaySize.height/2;
-    point.x *= display.viewportScale;
-    point.y *= display.viewportScale;
     return point;
-}
-
-- (CGFloat)viewportScale {
-    return self.display.viewportScale; // matching scale
 }
 
 #pragma mark - Initializers

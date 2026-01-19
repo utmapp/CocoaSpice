@@ -30,8 +30,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Helper class to retain fields from a renderer source
 @interface _CSRendererSourceData : NSObject<CSRenderSource>
 
-@property (nonatomic, readonly) CGPoint viewportOrigin;
-@property (nonatomic, readonly) CGFloat viewportScale;
+@property (nonatomic, readonly) CGPoint offset;
 @property (nonatomic, readonly) id<MTLBuffer> vertices;
 @property (nonatomic, readonly) NSUInteger numVertices;
 @property (nonatomic, readonly) id<MTLTexture> texture;
@@ -39,11 +38,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL isInverted;
 @property (nonatomic, readonly) BOOL isVisible;
 @property (nonatomic, strong, readonly) _CSRendererSourceData *cursorSource;
-@property (nonatomic, nullable, readonly) completionCallback_t completion;
 
 - (instancetype)init NS_UNAVAILABLE;
-- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource device:(id<MTLDevice>)device completion:(nullable completionCallback_t)completion;
-- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource atOffset:(CGPoint)offset device:(id<MTLDevice>)device completion:(nullable completionCallback_t)completion NS_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource device:(id<MTLDevice>)device;
+- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource atOffset:(CGPoint)offset device:(id<MTLDevice>)device NS_DESIGNATED_INITIALIZER;
 
 @end
 
@@ -53,36 +51,33 @@ NS_ASSUME_NONNULL_END
 
 /// Retain a copy of the render source data
 /// - Parameter renderSource: Render source to read from
-- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource completion:(nullable completionCallback_t)completion {
-    return [self initWithRenderSource:renderSource atOffset:CGPointZero completion:completion];
+- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource {
+    return [self initWithRenderSource:renderSource atOffset:CGPointZero];
 }
 
 /// Retain a copy of the render source data
 /// - Parameters:
 ///   - renderSource: Render source to read from
 ///   - offset: Offset to add to `viewportOrigin`, can be zero
-- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource atOffset:(CGPoint)offset completion:(nullable completionCallback_t)completion {
+- (nullable instancetype)initWithRenderSource:(id<CSRenderSource>)renderSource atOffset:(CGPoint)offset {
     id<CSRenderSource> cursorSource = renderSource.cursorSource;
     if (self = [super init]) {
-        _viewportOrigin = CGPointMake(renderSource.viewportOrigin.x +
-                                      offset.x,
-                                      renderSource.viewportOrigin.y +
-                                      offset.y);
-        _viewportScale = renderSource.viewportScale;
+        _offset = CGPointMake(renderSource.offset.x +
+                              offset.x,
+                              renderSource.offset.y +
+                              offset.y);
         _vertices = renderSource.vertices;
         _numVertices = renderSource.numVertices;
         _texture = renderSource.texture;
         _hasAlpha = renderSource.hasAlpha;
         _isInverted = renderSource.isInverted;
         _isVisible = renderSource.isVisible;
-        _completion = completion;
         if (!_vertices || !_texture) {
             return nil;
         }
         if (cursorSource) {
             _cursorSource = [[_CSRendererSourceData alloc] initWithRenderSource:cursorSource
-                                                                       atOffset:renderSource.viewportOrigin
-                                                                     completion:nil];
+                                                                       atOffset:renderSource.offset];
         }
     }
     return self;
@@ -92,9 +87,14 @@ NS_ASSUME_NONNULL_END
 
 @interface CSMetalRenderer ()
 
+// Thses must only be accessed by main thread
 @property (nonatomic, nullable) const _CSRendererSourceData *renderSourceData;
-@property (nonatomic, assign) vector_uint2 viewportSize;
-@property (nonatomic) id<MTLSamplerState> sampler;
+@property (nonatomic, assign) vector_uint2 renderViewportSize;
+@property (nonatomic) id<MTLSamplerState> renderSampler;
+@property (nonatomic) CGPoint renderViewportOrigin;
+@property (nonatomic) CGFloat renderViewportScale;
+@property (nonatomic) BOOL renderNeedsUpdate;
+@property (nonatomic, readonly) NSMutableArray<completionCallback_t> *renderCompletions;
 
 @end
 
@@ -112,6 +112,8 @@ NS_ASSUME_NONNULL_END
 }
 
 @synthesize device = _device;
+@synthesize viewportOrigin = _viewportOrigin;
+@synthesize viewportScale = _viewportScale;
 
 /// Initialize with the MetalKit view from which we'll obtain our Metal device
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView
@@ -122,7 +124,8 @@ NS_ASSUME_NONNULL_END
         NSError *error = NULL;
         
         _device = mtkView.device;
-        [self setViewportCGSize:mtkView.drawableSize];
+        [self _setViewportCGSize:mtkView.drawableSize];
+        _renderCompletions = [NSMutableArray array];
 
         /// Create our render pipeline
         
@@ -174,7 +177,7 @@ NS_ASSUME_NONNULL_END
     samplerDescriptor.minFilter = downscaler;
     samplerDescriptor.magFilter = upscaler;
 
-    _sampler = [_device newSamplerStateWithDescriptor:samplerDescriptor];
+    _renderSampler = [_device newSamplerStateWithDescriptor:samplerDescriptor];
 }
 
 /// Scalers from VM settings
@@ -184,19 +187,52 @@ NS_ASSUME_NONNULL_END
     });
 }
 
-- (void)setViewportCGSize:(CGSize)size {
+- (void)_setViewportCGSize:(CGSize)size {
     vector_uint2 viewportSize;
 
     viewportSize.x = size.width;
     viewportSize.y = size.height;
-    self.viewportSize = viewportSize;
+    _renderViewportSize = viewportSize;
 }
 
 /// Called whenever view changes orientation or is resized
 - (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
     // Save the size of the drawable as we'll pass these
     //   values to our vertex shader when we draw
-    [self setViewportCGSize:size];
+    [self _setViewportCGSize:size];
+}
+
+- (void)setViewportOrigin:(CGPoint)viewportOrigin {
+    if (!CGPointEqualToPoint(_viewportOrigin, viewportOrigin)) {
+        _viewportOrigin = viewportOrigin;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.renderViewportOrigin = viewportOrigin;
+            self.renderNeedsUpdate = YES;
+        });
+    }
+}
+
+- (void)setViewportScale:(CGFloat)viewportScale {
+    if (_viewportScale != viewportScale) {
+        _viewportScale = viewportScale;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.renderViewportScale = viewportScale;
+            self.renderNeedsUpdate = YES;
+        });
+    }
+}
+
+/// Must be called from main thread
+- (void)_addDrawCompletion:(completionCallback_t)completion {
+    [self.renderCompletions addObject:completion];
+}
+
+/// Must be called from main thread
+- (void)_completeDraw {
+    for (completionCallback_t completion in _renderCompletions) {
+        completion();
+    }
+    [self.renderCompletions removeAllObjects];
 }
 
 /// Create a translation+scale matrix
@@ -244,16 +280,9 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     }
 
     const _CSRendererSourceData *sourceData = self.renderSourceData;
-    vector_uint2 viewportSize = self.viewportSize;
-    id<MTLSamplerState> sampler = self.sampler;
 
-    // clear buffer
-    self.renderSourceData = nil;
-
-    if (!sourceData.isVisible) {
-        if (sourceData.completion) {
-            sourceData.completion();
-        }
+    if (!self.renderNeedsUpdate || !sourceData.isVisible) {
+        [self _completeDraw];
         return;
     }
 
@@ -263,37 +292,38 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
 
     [self _renderCommand:commandBuffer
               drawSource:sourceData
-            viewportSize:viewportSize
-                 sampler:sampler
+          viewportOrigin:self.renderViewportOrigin
+           viewportScale:self.renderViewportScale
+            viewportSize:self.renderViewportSize
+                 sampler:self.renderSampler
     renderPassDescriptor:renderPassDescriptor];
 
     [commandBuffer presentDrawable:currentDrawable];
 
     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
-        if (sourceData.completion) {
-            sourceData.completion();
-        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self _completeDraw];
+        });
     }];
 
     // Finalize rendering here & push the command buffer to the GPU
     [commandBuffer commit];
 }
 
-- (id<CSRenderSource>)renderSouce:(id<CSRenderSource>)renderSource
-                       copyBuffer:(id<MTLBuffer>)sourceBuffer
-                           region:(MTLRegion)region
-                     sourceOffset:(NSUInteger)sourceOffset
-                sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
-                       completion:(nullable completionCallback_t)completion {
+- (void)renderSouce:(id<CSRenderSource>)renderSource
+         copyBuffer:(id<MTLBuffer>)sourceBuffer
+             region:(MTLRegion)region
+       sourceOffset:(NSUInteger)sourceOffset
+  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+         completion:(nullable completionCallback_t)completion {
 
-    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource
-                                                                                 completion:completion];
+    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource];
 
     if (!sourceData) {
         if (completion) {
             completion();
         }
-        return nil;
+        return;
     }
 
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
@@ -316,38 +346,44 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     [commandBuffer commit];
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (self.renderSourceData.completion) {
-            self.renderSourceData.completion();
+        if (completion) {
+            [self _addDrawCompletion:completion];
         }
         self.renderSourceData = sourceData;
+        self.renderNeedsUpdate = YES;
     });
-
-    return sourceData;
 }
 
-- (id<CSRenderSource>)invalidateRenderSource:(id<CSRenderSource>)renderSource
-                              withCompletion:(nullable completionCallback_t)completion {
-    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource
-                                                                                 completion:completion];
+- (void)invalidateRenderSource:(id<CSRenderSource>)renderSource
+                withCompletion:(nullable completionCallback_t)completion {
+    _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource];
     if (!sourceData || !sourceData.isVisible) {
         if (completion) {
             completion();
         }
-        return nil;
+        return;
     }
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (self.renderSourceData.completion) {
-            self.renderSourceData.completion();
+        if (completion) {
+            [self _addDrawCompletion:completion];
         }
         self.renderSourceData = sourceData;
+        self.renderNeedsUpdate = YES;
     });
+}
 
-    return sourceData;
+- (void)disableRender {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.renderSourceData = nil;
+        self.renderNeedsUpdate = NO;
+    });
 }
 
 - (BOOL)_renderCommand:(id<MTLCommandBuffer>)commandBuffer
             drawSource:(id<CSRenderSource>)source
+        viewportOrigin:(CGPoint)viewportOrigin
+         viewportScale:(CGFloat)viewportScale
           viewportSize:(vector_uint2)viewportSize
                sampler:(id<MTLSamplerState>)sampler
   renderPassDescriptor:(MTLRenderPassDescriptor *)renderPassDescriptor {
@@ -359,9 +395,12 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
 
     NSAssert(source.isVisible, @"Screen should be visible at this point!");
 
+    CGPoint origin = CGPointMake(viewportOrigin.x + source.offset.x * viewportScale,
+                                 viewportOrigin.y + source.offset.y * viewportScale);
+
     [self _renderEncoder:renderEncoder
-            drawAtOrigin:source.viewportOrigin
-                   scale:source.viewportScale
+            drawAtOrigin:origin
+                   scale:viewportScale
                 vertices:source.vertices
             numVerticies:source.numVertices
                 hasAlpha:source.hasAlpha
@@ -372,10 +411,12 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
 
     // Draw cursor
     if (source.cursorSource.isVisible) {
+        CGPoint cursorOrigin = CGPointMake(viewportOrigin.x + (source.offset.x + source.cursorSource.offset.x) * viewportScale,
+                                           viewportOrigin.y + (source.offset.y + source.cursorSource.offset.y) * viewportScale);
         // Next render the cursor
         [self _renderEncoder:renderEncoder
-                drawAtOrigin:source.cursorSource.viewportOrigin
-                       scale:source.cursorSource.viewportScale
+                drawAtOrigin:cursorOrigin
+                       scale:viewportScale
                     vertices:source.cursorSource.vertices
                 numVerticies:source.cursorSource.numVertices
                     hasAlpha:source.cursorSource.hasAlpha

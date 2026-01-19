@@ -53,33 +53,28 @@
         completion:(completionCallback_t)completion {
     /* lockless operation, need to get a copy of renderers */
     NSArray<id<CSRenderer>> *renderers = self.renderers;
-    id<CSRenderSource> blitSource = nil;
     __block atomic_int numRemaining = renderers.count;
     if (renderers.count > 0) {
-        blitSource =
-            [renderers[0] renderSouce:self
-                           copyBuffer:sourceBuffer
-                               region:region
-                         sourceOffset:sourceOffset
-                    sourceBytesPerRow:sourceBytesPerRow
-                           completion:^{
-                if (atomic_fetch_sub(&numRemaining, 1) == 1) {
-                    completion();
-                }
-            }];
+        [renderers[0] renderSouce:self
+                       copyBuffer:sourceBuffer
+                           region:region
+                     sourceOffset:sourceOffset
+                sourceBytesPerRow:sourceBytesPerRow
+                       completion:^{
+            if (atomic_fetch_sub(&numRemaining, 1) == 1) {
+                completion();
+            }
+        }];
     }
-    if (blitSource && renderers.count > 1) {
+    if (renderers.count > 1) {
         // invalidate all others
         for (NSInteger i = 1; i < renderers.count; i++) {
-            [renderers[i] invalidateRenderSource:blitSource withCompletion:^{
+            [renderers[i] invalidateRenderSource:self withCompletion:^{
                 if (atomic_fetch_sub(&numRemaining, 1) == 1) {
                     completion();
                 }
             }];
         }
-    }
-    if (!blitSource) {
-        completion();
     }
 }
 
@@ -100,6 +95,13 @@
     NSArray<id<CSRenderer>> *renderers = self.renderers;
     for (NSInteger i = 0; i < renderers.count; i++) {
         [renderers[i] invalidateRenderSource:self withCompletion:nil];
+    }
+}
+
+- (void)disableScanout {
+    NSArray<id<CSRenderer>> *renderers = self.renderers;
+    for (NSInteger i = 0; i < renderers.count; i++) {
+        [renderers[i] disableRender];
     }
 }
 
