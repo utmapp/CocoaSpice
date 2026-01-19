@@ -38,12 +38,14 @@
     } else {
         NSAssert(self.device == renderer.device, @"Cannot use two renderers from different Metal devices!");
     }
+    [renderer invalidateRenderSource:self withCompletion:nil];
 }
 
 - (void)removeRenderer:(id<CSRenderer>)renderer {
     NSMutableArray<id<CSRenderer>> *renderers = [self.renderers mutableCopy];
     [renderers removeObject:renderer];
     self.renderers = renderers;
+    [renderer disableRender];
 }
 
 - (void)copyBuffer:(id<MTLBuffer>)sourceBuffer
