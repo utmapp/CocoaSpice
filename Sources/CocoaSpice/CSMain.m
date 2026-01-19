@@ -207,7 +207,7 @@ static void cleanupBlock(gpointer data) {
 }
 
 - (void)syncWith:(dispatch_block_t)block {
-    if (g_main_context_is_owner(self.glibMainContext)) {
+    if ([self isCurrentContextMain]) {
         block();
     } else {
         _CSMainBlock *_block = [[_CSMainBlock alloc] init];
@@ -218,6 +218,10 @@ static void cleanupBlock(gpointer data) {
         [self asyncWithBlock:_block];
         dispatch_group_wait(mainContextGroup, DISPATCH_TIME_FOREVER);
     }
+}
+
+- (BOOL)isCurrentContextMain {
+    return g_main_context_is_owner(self.glibMainContext);
 }
 
 @end

@@ -41,6 +41,9 @@ typedef void (^LogHandler_t)(NSString *line);
 /// Advanced users can use this with GLib to run in the worker thread's context
 @property (nonatomic, readonly) void *glibMainContext;
 
+/// Check if we are currently running with the main context lock held
+@property (nonatomic, readonly) BOOL isCurrentContextMain;
+
 /// Use this to get a pointer to this singleton
 @property (class, nonatomic, readonly) CSMain *sharedInstance NS_SWIFT_NAME(shared);
 

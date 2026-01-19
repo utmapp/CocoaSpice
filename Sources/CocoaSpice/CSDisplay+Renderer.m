@@ -18,22 +18,21 @@
 #import "CSDisplay+Protected.h"
 #import "CSDisplay+Renderer_Protected.h"
 #import "CSRenderer.h"
+#import <stdatomic.h>
 
 @interface CSDisplay ()
 
-@property (nonatomic, readonly) dispatch_queue_t displayQueue;
-@property (nonatomic) NSMutableArray<id<CSRenderer>> *renderers;
+@property (atomic) NSArray<id<CSRenderer>> *renderers;
 
 @end
 
 @implementation CSDisplay (Renderer)
 
 - (void)addRenderer:(id<CSRenderer>)renderer {
-    dispatch_async(self.displayQueue, ^{
-        if (![self.renderers containsObject:renderer]) {
-            [self.renderers addObject:renderer];
-        }
-    });
+    NSArray<id<CSRenderer>> *renderers = self.renderers;
+    if (![renderers containsObject:renderer]) {
+        self.renderers = [renderers arrayByAddingObject:renderer];
+    }
     if (!self.device) {
         self.device = renderer.device;
     } else {
@@ -42,42 +41,66 @@
 }
 
 - (void)removeRenderer:(id<CSRenderer>)renderer {
-    dispatch_async(self.displayQueue, ^{
-        [self.renderers removeObject:renderer];
-    });
+    NSMutableArray<id<CSRenderer>> *renderers = [self.renderers mutableCopy];
+    [renderers removeObject:renderer];
+    self.renderers = renderers;
 }
 
 - (void)copyBuffer:(id<MTLBuffer>)sourceBuffer
             region:(MTLRegion)region
       sourceOffset:(NSUInteger)sourceOffset
  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
-        completion:(copyCompletionCallback_t)completion {
-    dispatch_async(self.displayQueue, ^{
-        id<CSRenderSource> blitSource = self;
-        if (self.renderers.count > 0) {
-            blitSource =
-                [self.renderers[0] renderSouce:self
-                                    copyBuffer:sourceBuffer
-                                        region:region
-                                  sourceOffset:sourceOffset
-                             sourceBytesPerRow:sourceBytesPerRow
-                                    completion:completion];
+        completion:(completionCallback_t)completion {
+    /* lockless operation, need to get a copy of renderers */
+    NSArray<id<CSRenderer>> *renderers = self.renderers;
+    id<CSRenderSource> blitSource = nil;
+    __block atomic_int numRemaining = renderers.count;
+    if (renderers.count > 0) {
+        blitSource =
+            [renderers[0] renderSouce:self
+                           copyBuffer:sourceBuffer
+                               region:region
+                         sourceOffset:sourceOffset
+                    sourceBytesPerRow:sourceBytesPerRow
+                           completion:^{
+                if (atomic_fetch_sub(&numRemaining, 1) == 1) {
+                    completion();
+                }
+            }];
+    }
+    if (blitSource && renderers.count > 1) {
+        // invalidate all others
+        for (NSInteger i = 1; i < renderers.count; i++) {
+            [renderers[i] invalidateRenderSource:blitSource withCompletion:^{
+                if (atomic_fetch_sub(&numRemaining, 1) == 1) {
+                    completion();
+                }
+            }];
         }
-        if (self.renderers.count > 1) {
-            // invalidate all others
-            for (NSInteger i = 1; i < self.renderers.count; i++) {
-                [self.renderers[i] invalidateRenderSource:blitSource];
+    }
+    if (!blitSource) {
+        completion();
+    }
+}
+
+- (void)invalidateWithCompletion:(completionCallback_t)completion {
+    /* lockless operation, need to get a copy of renderers */
+    NSArray<id<CSRenderer>> *renderers = self.renderers;
+    __block atomic_int numRemaining = renderers.count;
+    for (NSInteger i = 0; i < renderers.count; i++) {
+        [renderers[i] invalidateRenderSource:self withCompletion:^{
+            if (atomic_fetch_sub(&numRemaining, 1) == 1) {
+                completion();
             }
-        }
-    });
+        }];
+    }
 }
 
 - (void)invalidate {
-    dispatch_async(self.displayQueue, ^{
-        for (NSInteger i = 0; i < self.renderers.count; i++) {
-            [self.renderers[i] invalidateRenderSource:self];
-        }
-    });
+    NSArray<id<CSRenderer>> *renderers = self.renderers;
+    for (NSInteger i = 0; i < renderers.count; i++) {
+        [renderers[i] invalidateRenderSource:self withCompletion:nil];
+    }
 }
 
 @end

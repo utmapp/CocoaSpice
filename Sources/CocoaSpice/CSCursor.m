@@ -44,10 +44,9 @@
 
 static void cs_cursor_invalidate(CSCursor *self)
 {
-    // we need to synchronize with both the cursor draw queue and the display draw queue
-    dispatch_async(self.cursorQueue, ^{
+    [CSMain.sharedInstance asyncWith:^{
         [self.display invalidate];
-    });
+    }];
 }
 
 static void cs_cursor_set(SpiceCursorChannel *channel,

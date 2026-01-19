@@ -28,8 +28,6 @@
 #import <IOSurface/IOSurfaceRef.h>
 #import <mach/vm_page_size.h>
 
-typedef void (^blitCommandCallback_t)(id<MTLBlitCommandEncoder>);
-
 @interface CSDisplay ()
 
 @property (nonatomic, assign) BOOL ready;
@@ -49,12 +47,12 @@ typedef void (^blitCommandCallback_t)(id<MTLBlitCommandEncoder>);
 @property (nonatomic) CGRect canvasArea;
 @property (nonatomic) id<MTLBuffer> canvasBuffer;
 @property (nonatomic) NSUInteger canvasBufferOffset;
-@property (nonatomic) dispatch_queue_t canvasDrawQueue;
+@property (nonatomic) BOOL canvasIsBusy;
+@property (nonatomic) CGRect canvasDirtyRect;
 
 // Other Drawing
 @property (nonatomic) CGRect visibleArea;
 @property (nonatomic, readwrite) CGSize displaySize;
-@property (nonatomic) dispatch_queue_t displayQueue;
 
 // CSRenderSource properties
 @property (nonatomic, nullable, readwrite) id<MTLTexture> canvasTexture;
@@ -63,7 +61,7 @@ typedef void (^blitCommandCallback_t)(id<MTLBlitCommandEncoder>);
 @property (nonatomic, nullable, readwrite) id<MTLBuffer> vertices;
 
 @property (nonatomic) id<MTLDevice> device;
-@property (nonatomic) NSMutableArray<id<CSRenderer>> *renderers;
+@property (atomic) NSArray<id<CSRenderer>> *renderers;
 
 @end
 
@@ -75,16 +73,13 @@ static void cs_primary_create(SpiceChannel *channel, gint format,
                            gint width, gint height, gint stride,
                            gint shmid, gpointer imgdata, gpointer data) {
     CSDisplay *self = (__bridge CSDisplay *)data;
-    
+
+    g_assert(CSMain.sharedInstance.isCurrentContextMain);
     g_assert(format == SPICE_SURFACE_FMT_32_xRGB || format == SPICE_SURFACE_FMT_16_555);
-    dispatch_barrier_sync(self.canvasDrawQueue, ^{
-        dispatch_sync(self.displayQueue, ^{
-            self.canvasArea = CGRectMake(0, 0, width, height);
-            self.canvasFormat = format;
-            self.canvasStride = stride;
-            self.canvasData = imgdata;
-        });
-    });
+    self.canvasArea = CGRectMake(0, 0, width, height);
+    self.canvasFormat = format;
+    self.canvasStride = stride;
+    self.canvasData = imgdata;
     
     cs_update_monitor_area(channel, NULL, data);
 }
@@ -92,24 +87,35 @@ static void cs_primary_create(SpiceChannel *channel, gint format,
 static void cs_primary_destroy(SpiceDisplayChannel *channel, gpointer data) {
     CSDisplay *self = (__bridge CSDisplay *)data;
     self.ready = NO;
-    
-    dispatch_barrier_sync(self.canvasDrawQueue, ^{
-        dispatch_sync(self.displayQueue, ^{
-            self.canvasArea = CGRectZero;
-            self.canvasFormat = 0;
-            self.canvasStride = 0;
-            self.canvasData = NULL;
-        });
-    });
+
+    g_assert(CSMain.sharedInstance.isCurrentContextMain);
+    self.canvasArea = CGRectZero;
+    self.canvasFormat = 0;
+    self.canvasStride = 0;
+    self.canvasData = NULL;
+    self.canvasBuffer = NULL; // no more new draws
+    if (self.canvasIsBusy) {
+        dispatch_semaphore_t invalidateComplete = dispatch_semaphore_create(0);
+        [self invalidateWithCompletion:^{
+            dispatch_semaphore_signal(invalidateComplete);
+        }];
+        dispatch_semaphore_wait(invalidateComplete, DISPATCH_TIME_FOREVER);
+    }
 }
 
 static void cs_invalidate(SpiceChannel *channel,
                        gint x, gint y, gint w, gint h, gpointer data) {
     CSDisplay *self = (__bridge CSDisplay *)data;
+
+    g_assert(CSMain.sharedInstance.isCurrentContextMain);
     CGRect rect = CGRectIntersection(CGRectMake(x, y, w, h), self.visibleArea);
-    self.isGLEnabled = NO;
+    g_assert(!self.isGLEnabled);
     if (!CGRectIsEmpty(rect)) {
-        [self drawRegion:rect];
+        if (!self.canvasIsBusy) {
+            [self drawRegion:rect];
+        } else {
+            self.canvasDirtyRect = CGRectUnion(self.canvasDirtyRect, rect);
+        }
     }
 }
 
@@ -131,7 +137,8 @@ static void cs_update_monitor_area(SpiceChannel *channel, GParamSpec *pspec, gpo
     SpiceDisplayMonitorConfig *cfg, *c = NULL;
     GArray *monitors = NULL;
     int i;
-    
+
+    g_assert(CSMain.sharedInstance.isCurrentContextMain);
     SPICE_DEBUG("[CocoaSpice] update monitor area");
     if (self.monitorID < 0)
         goto whole;
@@ -185,6 +192,7 @@ static void cs_gl_scanout(SpiceDisplayChannel *channel, GParamSpec *pspec, gpoin
 {
     CSDisplay *self = (__bridge CSDisplay *)data;
 
+    g_assert(CSMain.sharedInstance.isCurrentContextMain);
     SPICE_DEBUG("[CocoaSpice] %s: got scanout",  __FUNCTION__);
 
     const SpiceGlScanout *scanout;
@@ -204,12 +212,13 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 {
     CSDisplay *self = (__bridge CSDisplay *)data;
 
+    g_assert(CSMain.sharedInstance.isCurrentContextMain);
     SPICE_DEBUG("[CocoaSpice] %s",  __FUNCTION__);
 
-    self.isGLEnabled = YES;
-    [self invalidate];
-    // unblock the caller immedately
-    spice_display_channel_gl_draw_done(channel);
+    g_assert(self.isGLEnabled);
+    [self invalidateWithCompletion:^{
+        spice_display_channel_gl_draw_done(channel);
+    }];
 }
 
 #pragma mark - Properties
@@ -218,21 +227,23 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     if (_device == device) {
         return;
     }
-    _device = device;
-    [self rebuildDisplayVertices];
-    if (self.isGLEnabled) {
-        if (self.delayedScanoutSurface) {
-            [self rebuildScanoutTextureWithSurface:self.delayedScanoutSurface width:self.delayedScanoutInfo.width height:self.delayedScanoutInfo.height];
-            self.delayedScanoutSurface = nil;
-        } else {
-            if (self.glTexture) {
-                // reuse surface from existing texture (
-                [self rebuildScanoutTextureWithSurface:self.glTexture.iosurface width:self.glTexture.width height:self.glTexture.height];
+    [CSMain.sharedInstance asyncWith:^{
+        _device = device;
+        [self rebuildDisplayVertices];
+        if (self.isGLEnabled) {
+            if (self.delayedScanoutSurface) {
+                [self rebuildScanoutTextureWithSurface:self.delayedScanoutSurface width:self.delayedScanoutInfo.width height:self.delayedScanoutInfo.height];
+                self.delayedScanoutSurface = nil;
+            } else {
+                if (self.glTexture) {
+                    // reuse surface from existing texture (
+                    [self rebuildScanoutTextureWithSurface:self.glTexture.iosurface width:self.glTexture.width height:self.glTexture.height];
+                }
             }
+        } else {
+            [self rebuildCanvasTexture];
         }
-    } else {
-        [self rebuildCanvasTexture];
-    }
+    }];
     // possibly retrigger cursor rebuild
     self.cursor.display = self;
 }
@@ -242,37 +253,20 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)screenshotWithCompletion:(screenshotCallback_t)completion {
-    dispatch_async(self.canvasDrawQueue, ^{
+    [CSMain.sharedInstance asyncWith:^{
         CGImageRef img = NULL;
-        __block const void *canvasData = NULL;
-        __block CGRect canvasArea;
-        __block gint canvasStride;
-        __block id<MTLTexture> glTexture = nil;
-        
-        dispatch_sync(self.displayQueue, ^{
-            canvasData = self.canvasData;
-            canvasArea = self.canvasArea;
-            canvasStride = self.canvasStride;
-            glTexture = self.glTexture;
-            
-            if (self.isGLEnabled) {
-                canvasData = NULL;
-            } else {
-                glTexture = nil;
-            }
-        });
-        
-        if (canvasData) {
+
+        if (self.canvasData && self.isGLEnabled) {
             CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
             CGDataProviderRef dataProviderRef = CGDataProviderCreateWithData(NULL,
-                                                                             canvasData,
-                                                                             canvasStride * canvasArea.size.height,
+                                                                             self.canvasData,
+                                                                             self.canvasStride * self.canvasArea.size.height,
                                                                              nil);
-            img = CGImageCreate(canvasArea.size.width,
-                                canvasArea.size.height,
+            img = CGImageCreate(self.canvasArea.size.width,
+                                self.canvasArea.size.height,
                                 8,
                                 32,
-                                canvasStride,
+                                self.canvasStride,
                                 colorSpaceRef,
                                 kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
                                 dataProviderRef,
@@ -281,13 +275,13 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                                 kCGRenderingIntentDefault);
             CGDataProviderRelease(dataProviderRef);
             CGColorSpaceRelease(colorSpaceRef);
-        } else if (glTexture) {
-            CIImage *ciimage = [[CIImage alloc] initWithMTLTexture:glTexture options:nil];
+        } else if (self.glTexture) {
+            CIImage *ciimage = [[CIImage alloc] initWithMTLTexture:self.glTexture options:nil];
             CIImage *flipped = [ciimage imageByApplyingOrientation:kCGImagePropertyOrientationDownMirrored];
             CIContext *cictx = [CIContext context];
             img = [cictx createCGImage:flipped fromRect:flipped.extent];
         }
-        
+
         if (img) {
 #if TARGET_OS_IPHONE
             UIImage *uiimg = [UIImage imageWithCGImage:img];
@@ -299,7 +293,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         } else {
             completion(nil);
         }
-    });
+    }];
 }
 
 - (id<MTLTexture>)texture {
@@ -357,14 +351,18 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 - (void)setViewportOrigin:(CGPoint)viewportOrigin {
     if (!CGPointEqualToPoint(_viewportOrigin, viewportOrigin)) {
         _viewportOrigin = viewportOrigin;
-        [self invalidate];
+        [CSMain.sharedInstance asyncWith:^{
+            [self invalidate];
+        }];
     }
 }
 
 - (void)setViewportScale:(CGFloat)viewportScale {
     if (_viewportScale != viewportScale) {
         _viewportScale = viewportScale;
-        [self invalidate];
+        [CSMain.sharedInstance asyncWith:^{
+            [self invalidate];
+        }];
     }
 }
 
@@ -377,10 +375,6 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         _viewportOrigin = CGPointMake(0, 0);
         self.channel = g_object_ref(channel);
         self.monitorID = self.channelID;
-        dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, 0);
-        self.displayQueue = dispatch_queue_create("CocoaSpice Display Queue", attr);
-        attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_CONCURRENT, QOS_CLASS_USER_INTERACTIVE, 0);
-        self.canvasDrawQueue = dispatch_queue_create("CocoaSpice Canvas Draw Queue", attr);
         self.renderers = [NSMutableArray array];
         SPICE_DEBUG("[CocoaSpice] %s:%d", __FUNCTION__, __LINE__);
         g_signal_connect(channel, "display-primary-create",
@@ -426,18 +420,16 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)updateVisibleAreaWithRect:(CGRect)rect {
-    dispatch_sync(self.displayQueue, ^{
-        CGRect primary = self.canvasArea;
-        CGRect visible = CGRectIntersection(primary, rect);
-        if (CGRectIsNull(visible)) {
-            SPICE_DEBUG("[CocoaSpice] The monitor area is not intersecting primary surface");
-            self.ready = NO;
-            self.visibleArea = CGRectZero;
-        } else {
-            self.visibleArea = visible;
-        }
-        self.displaySize = self.visibleArea.size;
-    });
+    CGRect primary = self.canvasArea;
+    CGRect visible = CGRectIntersection(primary, rect);
+    if (CGRectIsNull(visible)) {
+        SPICE_DEBUG("[CocoaSpice] The monitor area is not intersecting primary surface");
+        self.ready = NO;
+        self.visibleArea = CGRectZero;
+    } else {
+        self.visibleArea = visible;
+    }
+    self.displaySize = self.visibleArea.size;
     [self rebuildDisplayVertices];
     if (!self.isGLEnabled) {
         [self rebuildCanvasTexture];
@@ -482,128 +474,121 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 }
 
 - (void)rebuildScanoutTextureWithSurface:(IOSurfaceRef)surface width:(NSUInteger)width height:(NSUInteger)height {
-    dispatch_sync(self.displayQueue, ^{
-        MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
-        textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
-        textureDescriptor.width = width;
-        textureDescriptor.height = height;
-        textureDescriptor.usage = MTLTextureUsageShaderRead;
-        self.canvasArea = CGRectMake(0, 0, width, height);
-        self.glTexture = [self.device newTextureWithDescriptor:textureDescriptor iosurface:surface plane:0];
-        CFRelease(surface);
-    });
+    MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
+    textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    textureDescriptor.width = width;
+    textureDescriptor.height = height;
+    textureDescriptor.usage = MTLTextureUsageShaderRead;
+    self.canvasArea = CGRectMake(0, 0, width, height);
+    self.glTexture = [self.device newTextureWithDescriptor:textureDescriptor iosurface:surface plane:0];
+    CFRelease(surface);
 }
 
 - (void)rebuildCanvasTexture {
-    dispatch_sync(self.displayQueue, ^{
-        CGRect visibleArea = self.visibleArea;
-        if (CGRectIsEmpty(visibleArea) || !self.device) {
-            return;
-        }
-        MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
-        // don't worry that that components are reversed, we fix it in shaders
-        textureDescriptor.pixelFormat = (self.canvasFormat == SPICE_SURFACE_FMT_32_xRGB) ? MTLPixelFormatBGRA8Unorm : (MTLPixelFormat)43;// FIXME: MTLPixelFormatBGR5A1Unorm is supposed to be available.
-        textureDescriptor.width = visibleArea.size.width;
-        textureDescriptor.height = visibleArea.size.height;
-        textureDescriptor.usage = MTLTextureUsageShaderRead;
-        self.canvasTexture = [self.device newTextureWithDescriptor:textureDescriptor];
-        uintptr_t canvasDataAligned = trunc_page_kernel((uintptr_t)self.canvasData);
-        NSUInteger canvasSize = self.canvasStride * self.canvasArea.size.height;
-        if (!canvasDataAligned || !canvasSize) {
-            return; // it will be freed
-        }
+    CGRect visibleArea = self.visibleArea;
+    if (CGRectIsEmpty(visibleArea) || !self.device) {
+        return;
+    }
+    MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
+    // don't worry that that components are reversed, we fix it in shaders
+    textureDescriptor.pixelFormat = (self.canvasFormat == SPICE_SURFACE_FMT_32_xRGB) ? MTLPixelFormatBGRA8Unorm : (MTLPixelFormat)43;// FIXME: MTLPixelFormatBGR5A1Unorm is supposed to be available.
+    textureDescriptor.width = visibleArea.size.width;
+    textureDescriptor.height = visibleArea.size.height;
+    textureDescriptor.usage = MTLTextureUsageShaderRead;
+    self.canvasTexture = [self.device newTextureWithDescriptor:textureDescriptor];
+    uintptr_t canvasDataAligned = trunc_page_kernel((uintptr_t)self.canvasData);
+    NSUInteger canvasSize = self.canvasStride * self.canvasArea.size.height;
+    if (!canvasDataAligned || !canvasSize) {
+        return; // it will be freed
+    }
 #if TARGET_OS_SIMULATOR
-        self.canvasBuffer = [self.device newBufferWithBytes:(void *)self.canvasData
-                                                     length:canvasSize
-                                                    options:0];
+    self.canvasBuffer = [self.device newBufferWithBytes:(void *)self.canvasData
+                                                 length:canvasSize
+                                                options:0];
 #else /* !TARGET_OS_SIMULATOR */
-        // round size up to multiple of page size
-        self.canvasBufferOffset = ((uintptr_t)self.canvasData - canvasDataAligned);
-        canvasSize += self.canvasBufferOffset;
-        canvasSize = round_page_kernel(canvasSize);
-        self.canvasBuffer = [self.device newBufferWithBytesNoCopy:(void *)canvasDataAligned
-                                                           length:canvasSize
+    // round size up to multiple of page size
+    self.canvasBufferOffset = ((uintptr_t)self.canvasData - canvasDataAligned);
+    canvasSize += self.canvasBufferOffset;
+    canvasSize = round_page_kernel(canvasSize);
+    self.canvasBuffer = [self.device newBufferWithBytesNoCopy:(void *)canvasDataAligned
+                                                       length:canvasSize
 #if TARGET_OS_OSX
-                                                          options:MTLResourceStorageModeManaged
+                                                      options:MTLResourceStorageModeManaged
 #else
-                                                          options:MTLResourceCPUCacheModeWriteCombined
+                                                      options:MTLResourceCPUCacheModeWriteCombined
 #endif
-                                                      deallocator:nil];
+                                                  deallocator:nil];
 #endif /* TARGET_OS_SIMULATOR */
-        [self drawRegion:visibleArea];
-    });
+    [self drawRegion:visibleArea];
 }
 
 - (void)rebuildDisplayVertices {
-    dispatch_sync(self.displayQueue, ^{
-        CGRect visibleArea = self.visibleArea;
-        if (CGRectIsEmpty(visibleArea) || !self.device) {
-            return;
-        }
-        dispatch_async(self.displayQueue, ^{
-            // We flip the y-coordinates because pixman renders flipped
-            CSRenderVertex quadVertices[] =
-            {
-                // Pixel positions, Texture coordinates
-                { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
-                { { -visibleArea.size.width/2,   visibleArea.size.height/2 },  { 0.f, 0.f } },
-                { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
-                
-                { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
-                { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
-                { {  visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 1.f, 1.f } },
-            };
-            
-            // Create our vertex buffer, and initialize it with our quadVertices array
-            self.vertices = [self.device newBufferWithBytes:quadVertices
-                                                     length:sizeof(quadVertices)
-                                                    options:MTLResourceCPUCacheModeWriteCombined];
-            
-            // Calculate the number of vertices by dividing the byte length by the size of each vertex
-            self.numVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
-        });
-    });
+    CGRect visibleArea = self.visibleArea;
+    if (CGRectIsEmpty(visibleArea) || !self.device) {
+        return;
+    }
+    // We flip the y-coordinates because pixman renders flipped
+    CSRenderVertex quadVertices[] =
+    {
+        // Pixel positions, Texture coordinates
+        { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
+        { { -visibleArea.size.width/2,   visibleArea.size.height/2 },  { 0.f, 0.f } },
+        { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
+
+        { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
+        { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
+        { {  visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 1.f, 1.f } },
+    };
+
+    // Create our vertex buffer, and initialize it with our quadVertices array
+    self.vertices = [self.device newBufferWithBytes:quadVertices
+                                             length:sizeof(quadVertices)
+                                            options:MTLResourceCPUCacheModeWriteCombined];
+
+    // Calculate the number of vertices by dividing the byte length by the size of each vertex
+    self.numVertices = sizeof(quadVertices) / sizeof(CSRenderVertex);
 }
 
 - (void)drawRegion:(CGRect)rect {
-    dispatch_async(self.canvasDrawQueue, ^{
-        dispatch_semaphore_t drawCompletedEvent = dispatch_semaphore_create(0);
-        dispatch_async(self.displayQueue, ^{
-            if (!self.canvasData || !self.canvasBuffer) {
-                dispatch_semaphore_signal(drawCompletedEvent);
-                return; // not ready to draw yet
-            }
-            NSInteger pixelSize = (self.canvasFormat == SPICE_SURFACE_FMT_32_xRGB) ? 4 : 2;
-            // create draw region
-            MTLRegion region = {
-                { rect.origin.x-self.visibleArea.origin.x, rect.origin.y-self.visibleArea.origin.y, 0 }, // MTLOrigin
-                { rect.size.width, rect.size.height, 1} // MTLSize
-            };
-            NSUInteger offset = (NSUInteger)(rect.origin.y*self.canvasStride + rect.origin.x*pixelSize);
-            NSUInteger totalBytes = rect.size.width*rect.size.height*pixelSize;
+    if (!self.canvasData || !self.canvasBuffer) {
+        return; // not ready to draw yet
+    }
+    self.canvasIsBusy = YES;
+    NSInteger pixelSize = (self.canvasFormat == SPICE_SURFACE_FMT_32_xRGB) ? 4 : 2;
+    // create draw region
+    MTLRegion region = {
+        { rect.origin.x-self.visibleArea.origin.x, rect.origin.y-self.visibleArea.origin.y, 0 }, // MTLOrigin
+        { rect.size.width, rect.size.height, 1} // MTLSize
+    };
+    NSUInteger offset = (NSUInteger)(rect.origin.y*self.canvasStride + rect.origin.x*pixelSize);
+    NSUInteger totalBytes = rect.size.width*rect.size.height*pixelSize;
 #if TARGET_OS_OSX || TARGET_OS_SIMULATOR
-            for (NSUInteger i = 0; i < rect.size.height; i++) {
+    for (NSUInteger i = 0; i < rect.size.height; i++) {
 #if TARGET_OS_SIMULATOR
-                memcpy(self.canvasBuffer.contents + offset + i*self.canvasStride,
-                       self.canvasData + offset + i*self.canvasStride,
-                       rect.size.width*pixelSize);
+        memcpy(self.canvasBuffer.contents + offset + i*self.canvasStride,
+               self.canvasData + offset + i*self.canvasStride,
+               rect.size.width*pixelSize);
 #else /* !TARGET_OS_SIMULATOR */
-                [self.canvasBuffer didModifyRange:NSMakeRange(offset+i*self.canvasStride,
-                                                              rect.size.width*pixelSize)];
+        [self.canvasBuffer didModifyRange:NSMakeRange(offset+i*self.canvasStride,
+                                                      rect.size.width*pixelSize)];
 #endif /* TARGET_OS_SIMULATOR */
-            }
+    }
 #endif
-            // hold a read lock on the concurrent draw queue
-            [self copyBuffer:self.canvasBuffer
-                      region:region
-                sourceOffset:self.canvasBufferOffset + offset
-           sourceBytesPerRow:self.canvasStride
-                  completion:^ {
-                dispatch_semaphore_signal(drawCompletedEvent);
-            }];
-        });
-        dispatch_semaphore_wait(drawCompletedEvent, DISPATCH_TIME_FOREVER);
-    });
+    dispatch_semaphore_t drawCompletedEvent = dispatch_semaphore_create(0);
+    [self copyBuffer:self.canvasBuffer
+              region:region
+        sourceOffset:self.canvasBufferOffset + offset
+   sourceBytesPerRow:self.canvasStride
+          completion:^ {
+        [CSMain.sharedInstance asyncWith:^{
+            CGRect dirtyRect = self.canvasDirtyRect;
+            self.canvasDirtyRect = CGRectZero;
+            self.canvasIsBusy = NO;
+            if (!CGRectIsEmpty(dirtyRect)) {
+                [self drawRegion:dirtyRect];
+            }
+        }];
+    }];
 }
 
 - (void)requestResolution:(CGRect)bounds {

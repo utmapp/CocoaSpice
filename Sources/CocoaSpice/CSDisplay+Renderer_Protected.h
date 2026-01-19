@@ -26,6 +26,8 @@ NS_ASSUME_NONNULL_BEGIN
  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
         completion:(completionCallback_t)completion;
 
+- (void)invalidateWithCompletion:(completionCallback_t)completion;
+
 - (void)invalidate;
 
 @end

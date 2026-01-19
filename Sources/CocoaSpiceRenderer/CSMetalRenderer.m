@@ -325,10 +325,6 @@ static matrix_float4x4 matrix_scale_translate(CGFloat scale, CGPoint translate)
     return sourceData;
 }
 
-- (id<CSRenderSource>)invalidateRenderSource:(id<CSRenderSource>)renderSource {
-    return [self invalidateRenderSource:renderSource withCompletion:^{}];
-}
-
 - (id<CSRenderSource>)invalidateRenderSource:(id<CSRenderSource>)renderSource
                               withCompletion:(nullable completionCallback_t)completion {
     _CSRendererSourceData *sourceData = [[_CSRendererSourceData alloc] initWithRenderSource:renderSource

@@ -46,8 +46,9 @@ typedef void (^completionCallback_t)(void);
 /// Mark source pending to be rendered
 /// - Parameters:
 ///   - renderSource: Source to render
-///   - event: MTLEvent to wait for before rendering
-- (id<CSRenderSource>)invalidateRenderSource:(id<CSRenderSource>)renderSource;
+///   - completion: Block to run when draw completed
+- (id<CSRenderSource>)invalidateRenderSource:(id<CSRenderSource>)renderSource
+                              withCompletion:(nullable completionCallback_t)completion;
 
 @end
 
