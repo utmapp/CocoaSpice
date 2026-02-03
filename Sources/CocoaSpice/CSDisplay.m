@@ -230,7 +230,6 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     }
     [CSMain.sharedInstance asyncWith:^{
         _device = device;
-        [self rebuildDisplayVertices];
         if (self.isGLEnabled) {
             if (self.delayedScanoutSurface) {
                 [self rebuildScanoutTextureWithSurface:self.delayedScanoutSurface width:self.delayedScanoutInfo.width height:self.delayedScanoutInfo.height];
@@ -244,6 +243,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         } else {
             [self rebuildCanvasTexture];
         }
+        [self rebuildDisplayVertices];
     }];
     // possibly retrigger cursor rebuild
     self.cursor.display = self;
@@ -415,10 +415,10 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         self.visibleArea = visible;
     }
     self.displaySize = self.visibleArea.size;
-    [self rebuildDisplayVertices];
     if (!self.isGLEnabled) {
         [self rebuildCanvasTexture];
     }
+    [self rebuildDisplayVertices];
     self.ready = YES;
 }
 
@@ -451,6 +451,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     }
     if (self.device) {
         [self rebuildScanoutTextureWithSurface:iosurface width:scanout.width height:scanout.height];
+        [self rebuildDisplayVertices];
     } else {
         // delay until we have a device
         self.delayedScanoutSurface = iosurface;
@@ -512,17 +513,37 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     if (CGRectIsEmpty(visibleArea) || !self.device) {
         return;
     }
+
+    // Default to full texture mapping (0.0 to 1.0)
+    float minX = 0.0f;
+    float maxX = 1.0f;
+    float minY = 0.0f;
+    float maxY = 1.0f;
+
+    // In GL mode, the texture is the full scanout, but we only want to display 'visibleArea'.
+    // We must crop the texture coordinates to match the monitor's x/y offset and width/height.
+    if (self.isGLEnabled && !CGRectIsEmpty(self.canvasArea)) {
+        float textureWidth = self.canvasArea.size.width;
+        float textureHeight = self.canvasArea.size.height;
+
+        minX = visibleArea.origin.x / textureWidth;
+        maxX = (visibleArea.origin.x + visibleArea.size.width) / textureWidth;
+
+        minY = visibleArea.origin.y / textureHeight;
+        maxY = (visibleArea.origin.y + visibleArea.size.height) / textureHeight;
+    }
+
     // We flip the y-coordinates because pixman renders flipped
     CSRenderVertex quadVertices[] =
     {
-        // Pixel positions, Texture coordinates
-        { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
-        { { -visibleArea.size.width/2,   visibleArea.size.height/2 },  { 0.f, 0.f } },
-        { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
+        // Pixel positions,                                             Texture coordinates
+        { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { maxX, minY } }, // Top Right
+        { { -visibleArea.size.width/2,   visibleArea.size.height/2 },  { minX, minY } }, // Top Left
+        { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { minX, maxY } }, // Bottom Left
 
-        { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { 1.f, 0.f } },
-        { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 0.f, 1.f } },
-        { {  visibleArea.size.width/2,  -visibleArea.size.height/2 },  { 1.f, 1.f } },
+        { {  visibleArea.size.width/2,   visibleArea.size.height/2 },  { maxX, minY } }, // Top Right
+        { { -visibleArea.size.width/2,  -visibleArea.size.height/2 },  { minX, maxY } }, // Bottom Left
+        { {  visibleArea.size.width/2,  -visibleArea.size.height/2 },  { maxX, maxY } }, // Bottom Right
     };
 
     // Create our vertex buffer, and initialize it with our quadVertices array
