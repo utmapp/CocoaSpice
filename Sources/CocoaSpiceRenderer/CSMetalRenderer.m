@@ -126,6 +126,8 @@ NS_ASSUME_NONNULL_END
         _device = mtkView.device;
         [self _setViewportCGSize:mtkView.drawableSize];
         _renderCompletions = [NSMutableArray array];
+        _viewportScale = 1.0f;
+        _renderViewportScale = 1.0f;
 
         /// Create our render pipeline
         
