@@ -218,8 +218,15 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
     g_assert(self.isGLEnabled);
     [self invalidateWithCompletion:^{
-        spice_display_channel_gl_draw_done(channel);
+        //spice_display_channel_gl_draw_done(channel);
     }];
+    // Ideally, we execute this in the completion to prevent tearing
+    // but in practice the added latency causes extreme stuttering
+    // and long delays as each frame is rendered serially.
+    // Long term: investigate where the bottleneck lies, introduce
+    // double/triple buffering, or move away from SPICE rendering
+    // completely (for high performance apps).
+    spice_display_channel_gl_draw_done(channel);
 }
 
 #pragma mark - Properties
