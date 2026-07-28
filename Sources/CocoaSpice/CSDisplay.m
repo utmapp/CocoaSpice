@@ -235,9 +235,13 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                 [self rebuildScanoutTextureWithSurface:self.delayedScanoutSurface width:self.delayedScanoutInfo.width height:self.delayedScanoutInfo.height];
                 self.delayedScanoutSurface = nil;
             } else {
-                if (self.glTexture) {
-                    // reuse surface from existing texture (
-                    [self rebuildScanoutTextureWithSurface:self.glTexture.iosurface width:self.glTexture.width height:self.glTexture.height];
+                IOSurfaceRef surface = self.glTexture.iosurface;
+                if (surface) {
+                    // MTLTexture.iosurface follows the get rule, but
+                    // rebuildScanoutTextureWithSurface: consumes a +1
+                    // reference, so balance it here.
+                    CFRetain(surface);
+                    [self rebuildScanoutTextureWithSurface:surface width:self.glTexture.width height:self.glTexture.height];
                 }
             }
         } else {
@@ -459,6 +463,7 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     }
 }
 
+/// Consumes a +1 reference on `surface`.
 - (void)rebuildScanoutTextureWithSurface:(IOSurfaceRef)surface width:(NSUInteger)width height:(NSUInteger)height {
     MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
     textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
