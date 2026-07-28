@@ -218,7 +218,11 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 
     g_assert(self.isGLEnabled);
     [self invalidateWithCompletion:^{
-        spice_display_channel_gl_draw_done(channel);
+        // the completion runs on the main queue, but SPICE calls must be
+        // made on its own context thread
+        [CSMain.sharedInstance asyncWith:^{
+            spice_display_channel_gl_draw_done(channel);
+        }];
     }];
 }
 
