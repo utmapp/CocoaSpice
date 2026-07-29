@@ -491,10 +491,18 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
     }
 }
 
++ (MTLPixelFormat)pixelFormatForSurface:(IOSurfaceRef)surface {
+    return IOSurfaceGetPixelFormat(surface) == 'RGBA' ? MTLPixelFormatRGBA8Unorm
+                                                      : MTLPixelFormatBGRA8Unorm;
+}
+
 /// Consumes a +1 reference on `surface`.
 - (void)rebuildScanoutTextureWithSurface:(IOSurfaceRef)surface width:(NSUInteger)width height:(NSUInteger)height {
     MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
-    textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    // The surface carries its own channel order (the host picks it from the
+    // guest scanout, which is not always BGRA), so take it from the surface:
+    // wrapping RGBA bytes in a BGRA texture samples red and blue transposed.
+    textureDescriptor.pixelFormat = [CSDisplay pixelFormatForSurface:surface];
     textureDescriptor.width = width;
     textureDescriptor.height = height;
     textureDescriptor.usage = MTLTextureUsageShaderRead;
@@ -510,14 +518,18 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
 /// Allocate the private texture the scanout is copied into. See
 /// `copyScanoutRect:withCompletion:` for why the copy exists.
 - (void)rebuildShadowTextureWithWidth:(NSUInteger)width height:(NSUInteger)height {
-    if (self.shadowTexture.width == width && self.shadowTexture.height == height) {
+    MTLPixelFormat format = self.glTexture ? self.glTexture.pixelFormat
+                                           : MTLPixelFormatBGRA8Unorm;
+    if (self.shadowTexture.width == width && self.shadowTexture.height == height &&
+        self.shadowTexture.pixelFormat == format) {
         // the next copy overwrites it in full, so the existing allocation is
         // still good and what we are presenting stays valid until then
         return;
     }
 
     MTLTextureDescriptor *textureDescriptor = [[MTLTextureDescriptor alloc] init];
-    textureDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    // copyScanoutRect blits into this, and a blit cannot convert formats
+    textureDescriptor.pixelFormat = format;
     textureDescriptor.width = width;
     textureDescriptor.height = height;
     textureDescriptor.usage = MTLTextureUsageShaderRead;
