@@ -112,6 +112,7 @@ NS_ASSUME_NONNULL_END
 }
 
 @synthesize device = _device;
+@synthesize commandQueue = _commandQueue;
 @synthesize viewportOrigin = _viewportOrigin;
 @synthesize viewportScale = _viewportScale;
 

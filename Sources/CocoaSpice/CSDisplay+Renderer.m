@@ -56,18 +56,20 @@
     /* lockless operation, need to get a copy of renderers */
     NSArray<id<CSRenderer>> *renderers = self.renderers;
     __block atomic_int numRemaining = renderers.count;
-    if (renderers.count > 0) {
-        [renderers[0] renderSouce:self
-                       copyBuffer:sourceBuffer
-                           region:region
-                     sourceOffset:sourceOffset
-                sourceBytesPerRow:sourceBytesPerRow
-                       completion:^{
-            if (atomic_fetch_sub(&numRemaining, 1) == 1) {
-                completion();
-            }
-        }];
+    if (renderers.count == 0) {
+        completion(); // nobody is left to call us back
+        return;
     }
+    [renderers[0] renderSouce:self
+                   copyBuffer:sourceBuffer
+                       region:region
+                 sourceOffset:sourceOffset
+            sourceBytesPerRow:sourceBytesPerRow
+                   completion:^{
+        if (atomic_fetch_sub(&numRemaining, 1) == 1) {
+            completion();
+        }
+    }];
     if (renderers.count > 1) {
         // invalidate all others
         for (NSInteger i = 1; i < renderers.count; i++) {
@@ -84,6 +86,10 @@
     /* lockless operation, need to get a copy of renderers */
     NSArray<id<CSRenderer>> *renderers = self.renderers;
     __block atomic_int numRemaining = renderers.count;
+    if (renderers.count == 0) {
+        completion(); // nobody is left to call us back
+        return;
+    }
     for (NSInteger i = 0; i < renderers.count; i++) {
         [renderers[i] invalidateRenderSource:self withCompletion:^{
             if (atomic_fetch_sub(&numRemaining, 1) == 1) {

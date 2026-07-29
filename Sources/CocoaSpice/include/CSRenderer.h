@@ -28,6 +28,11 @@ typedef void (^completionCallback_t)(void);
 /// A Metal device linked to a renderer
 @property (nonatomic, readonly) id<MTLDevice> device;
 
+/// The queue this renderer submits presentation work on. Work committed here is
+/// ordered against presentation, so a caller can safely overwrite a texture the
+/// renderer sampled in an earlier frame.
+@property (nonatomic, readonly) id<MTLCommandQueue> commandQueue;
+
 /// Set by the caller to the offset in the render surface where the display will be drawn to
 @property (nonatomic, readwrite) CGPoint viewportOrigin;
 
