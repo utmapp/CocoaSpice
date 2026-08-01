@@ -38,7 +38,7 @@
 
 @implementation CSMain {
     GMainContext *_main_context;
-    GMainLoop *_main_loop;
+    gint _loop_quit;
 }
 
 static void logHandler(const gchar *log_domain, GLogLevelFlags log_level,
@@ -95,7 +95,16 @@ void *spice_main_loop(void *args) {
     
     g_main_context_ref(self->_main_context);
     g_main_context_push_thread_default(self->_main_context);
-    g_main_loop_run(self->_main_loop);
+    // Iterate manually instead of g_main_loop_run() so every dispatch runs
+    // inside an autorelease pool: SPICE callbacks autorelease Objective-C
+    // objects (one MTLBlitCommandEncoder per gl_draw, cursors, images), and
+    // this thread lives for the whole app, so without a per-iteration drain
+    // they pin device memory forever.
+    while (!g_atomic_int_get(&self->_loop_quit)) {
+        @autoreleasepool {
+            g_main_context_iteration(self->_main_context, TRUE);
+        }
+    }
     g_main_context_pop_thread_default(self->_main_context);
     g_main_context_unref(self->_main_context);
     
@@ -126,10 +135,6 @@ void *spice_main_loop(void *args) {
         if ((_main_context = g_main_context_new()) == NULL) {
             return nil;
         }
-        if ((_main_loop = g_main_loop_new(_main_context, FALSE)) == NULL) {
-            g_main_context_unref(_main_context);
-            return nil;
-        }
         g_log_set_default_handler(logHandler, NULL);
     }
     return self;
@@ -137,7 +142,6 @@ void *spice_main_loop(void *args) {
 
 - (void)dealloc {
     [self spiceStop];
-    g_main_loop_unref(_main_loop);
     g_main_context_unref(_main_context);
     g_log_set_default_handler(g_log_default_handler, NULL);
 }
@@ -150,6 +154,7 @@ void *spice_main_loop(void *args) {
     @synchronized (self) {
         if (!self.running) {
             pthread_t spiceThread;
+            g_atomic_int_set(&_loop_quit, FALSE);
             spice_util_set_main_context(_main_context);
             pthread_attr_t qosAttribute;
             pthread_attr_init(&qosAttribute);
@@ -169,7 +174,8 @@ void *spice_main_loop(void *args) {
         if (self.running) {
             void *status;
             spice_util_set_main_context(NULL);
-            g_main_loop_quit(_main_loop);
+            g_atomic_int_set(&_loop_quit, TRUE);
+            g_main_context_wakeup(_main_context);
             pthread_join(self.spiceThread, &status);
             self.running = NO;
             self.spiceThread = NULL;
