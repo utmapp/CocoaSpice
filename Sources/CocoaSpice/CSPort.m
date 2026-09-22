@@ -74,7 +74,9 @@ static void cs_port_write_cb(GObject *source_object,
                              GAsyncResult *res,
                              gpointer user_data)
 {
-    CSPort *self = (__bridge_transfer CSPort *)user_data;
+    // releases the port and the data buffer retained in writeData:
+    NSArray *context = (__bridge_transfer NSArray *)user_data;
+    CSPort *self = context[0];
     SpicePortChannel *port = SPICE_PORT_CHANNEL(source_object);
     GError *error = NULL;
 
@@ -157,8 +159,13 @@ static void cs_port_write_cb(GObject *source_object,
 }
 
 - (void)writeData:(NSData *)data {
+    NSData *buffer = [NSData dataWithBytes:data.bytes length:data.length];
     [CSMain.sharedInstance asyncWith:^{
-        spice_port_channel_write_async(self.channel, data.bytes, data.length, NULL, cs_port_write_cb, (__bridge_retained void *)self);
+        // SPICE sends the buffer by reference after this returns, so it must
+        // stay alive until cs_port_write_cb and not only until the autorelease
+        // pool of this loop iteration is drained
+        NSArray *context = @[self, buffer];
+        spice_port_channel_write_async(self.channel, buffer.bytes, buffer.length, NULL, cs_port_write_cb, (__bridge_retained void *)context);
     }];
 }
 
