@@ -263,10 +263,12 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
                     [self rebuildScanoutTextureWithSurface:surface width:self.glTexture.width height:self.glTexture.height];
                 }
             }
+            [self rebuildDisplayVertices];
         } else {
+            // before the canvas: a renderer drops the copy of a source with no vertices
+            [self rebuildDisplayVertices];
             [self rebuildCanvasTexture];
         }
-        [self rebuildDisplayVertices];
     }];
     // possibly retrigger cursor rebuild
     self.cursor.display = self;
@@ -447,11 +449,13 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         self.visibleArea = visible;
     }
     self.displaySize = self.visibleArea.size;
+    // before the canvas: a renderer drops the copy of a source with no vertices,
+    // and does not present one that is not ready
+    [self rebuildDisplayVertices];
+    self.ready = YES;
     if (!self.isGLEnabled) {
         [self rebuildCanvasTexture];
     }
-    [self rebuildDisplayVertices];
-    self.ready = YES;
 }
 
 - (void)rebuildScanoutTextureWithScanout:(SpiceGlScanout)scanout {
