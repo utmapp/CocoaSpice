@@ -281,11 +281,20 @@ static void cs_gl_draw(SpiceDisplayChannel *channel,
         CGImageRef img = NULL;
 
         if (self.canvasData && !self.isGLEnabled) {
+            // SPICE frees the canvas on primary-destroy (a resolution change
+            // or a disconnect) while the caller may still hold the image, so
+            // the image must own a copy of the pixels; this runs on the SPICE
+            // context, where the canvas cannot be freed during the copy
+            CFDataRef pixels = CFDataCreate(kCFAllocatorDefault,
+                                            self.canvasData,
+                                            self.canvasStride * self.canvasArea.size.height);
+            if (!pixels) {
+                completion(nil);
+                return;
+            }
             CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
-            CGDataProviderRef dataProviderRef = CGDataProviderCreateWithData(NULL,
-                                                                             self.canvasData,
-                                                                             self.canvasStride * self.canvasArea.size.height,
-                                                                             nil);
+            CGDataProviderRef dataProviderRef = CGDataProviderCreateWithCFData(pixels);
+            CFRelease(pixels);
             img = CGImageCreate(self.canvasArea.size.width,
                                 self.canvasArea.size.height,
                                 8,
